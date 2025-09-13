@@ -18,7 +18,6 @@ import { useToast } from '@/hooks/use-toast';
 import { analyzeReceipt } from '@/app/actions';
 import { Loader2, Wand2 } from 'lucide-react';
 import type { PaymentMode } from '@/lib/types';
-import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
 
 export function ExpenseForm() {
   const { addExpense, budgets, expenseCategories, paymentModes } = useClarity();
@@ -30,7 +29,8 @@ export function ExpenseForm() {
   const [vendor, setVendor] = useState('');
   const [budgetId, setBudgetId] = useState('');
   const [category, setCategory] = useState('');
-  const [receiptDataUrl, setReceiptDataUrl] = useState<string | null>(null);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   
   const [paymentMode, setPaymentMode] = useState<PaymentMode | ''>('');
   const [transactionReference, setTransactionReference] = useState('');
@@ -42,10 +42,11 @@ export function ExpenseForm() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setReceiptFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         const dataUri = reader.result as string;
-        setReceiptDataUrl(dataUri);
+        setReceiptPreview(dataUri);
         handleAnalyzeReceipt(dataUri);
       };
       reader.readAsDataURL(file);
@@ -85,7 +86,7 @@ export function ExpenseForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !amount || !vendor || !budgetId || !category || !receiptDataUrl || !paymentMode) {
+    if (!title || !amount || !vendor || !budgetId || !category || !receiptFile || !paymentMode) {
       toast({
         title: 'Missing Fields',
         description: 'Please fill out all fields and upload a receipt.',
@@ -104,7 +105,7 @@ export function ExpenseForm() {
           budgetId,
           category,
           date: new Date().toISOString(),
-          receiptUrl: receiptDataUrl,
+          receiptFile: receiptFile, // Pass the file object
           paymentMode: paymentMode,
           transactionReference,
         });
@@ -246,8 +247,8 @@ export function ExpenseForm() {
                     <Loader2 className="h-8 w-8 animate-spin" />
                     <span>Analyzing Receipt...</span>
                   </div>
-                ) : receiptDataUrl ? (
-                  <img src={receiptDataUrl} alt="Receipt Preview" className="h-full w-full object-contain rounded-lg" />
+                ) : receiptPreview ? (
+                  <img src={receiptPreview} alt="Receipt Preview" className="h-full w-full object-contain rounded-lg" />
                 ) : (
                   <div className="text-center text-sm text-muted-foreground">
                     <p>Preview will appear here.</p>
