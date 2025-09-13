@@ -1,0 +1,40 @@
+export type Role = 'Admin' | 'Reviewer' | 'Public';
+
+export interface User {
+  id: string;
+  name: string;
+  role: Role;
+}
+
+export interface Budget {
+  id: string;
+  title: string;
+  allocated: number;
+  department: string;
+  // Versioning can be handled by storing previous states
+  history?: Partial<Budget>[];
+}
+
+export interface Expense {
+  id: string;
+  title: string;
+  amount: number;
+  category: string;
+  vendor: string;
+  date: string; // ISO string
+  receiptUrl?: string;
+  budgetId: string;
+  submittedBy: string; // User ID
+  status: 'Submitted' | 'Approved' | 'Rejected';
+  auditTrail: AuditLog[];
+}
+
+export interface AuditLog {
+  timestamp: string; // ISO string
+  userId: string;
+  action: 'Created' | 'Approved' | 'Rejected' | 'Updated';
+  comments?: string;
+}
+
+export const DEPARTMENTS = ["Library", "Sports", "Food", "Maintenance", "Lab", "Events"];
+export const EXPENSE_CATEGORIES = ["Supplies", "Services", "Equipment", "Travel", "Utilities", "Miscellaneous"];

@@ -1,0 +1,193 @@
+'use client';
+
+import type { Budget, Expense, Role, User } from '@/lib/types';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { DEPARTMENTS, EXPENSE_CATEGORIES } from '@/lib/types';
+
+// Mock Data
+const initialUsers: User[] = [
+  { id: 'user-1', name: 'Admin User', role: 'Admin' },
+  { id: 'user-2', name: 'Reviewer User', role: 'Reviewer' },
+  { id: 'user-3', name: 'Public User', role: 'Public' },
+];
+
+const initialBudgets: Budget[] = [
+  { id: 'budget-1', title: 'Annual Fest 2025', allocated: 500000, department: 'Events' },
+  { id: 'budget-2', title: 'Library Acquisition Q3', allocated: 1000000, department: 'Library' },
+  { id: 'budget-3', title: 'Sports Equipment 2025', allocated: 750000, department: 'Sports' },
+];
+
+const initialExpenses: Expense[] = [
+  {
+    id: 'exp-1',
+    title: 'New Computer Science Books',
+    amount: 20000,
+    category: 'Supplies',
+    vendor: 'Book World Inc.',
+    date: new Date('2024-07-15T10:00:00Z').toISOString(),
+    budgetId: 'budget-2',
+    submittedBy: 'user-1',
+    status: 'Approved',
+    receiptUrl: 'https://picsum.photos/seed/receipt1/400/600',
+    auditTrail: [
+      { timestamp: new Date('2024-07-15T10:00:00Z').toISOString(), userId: 'user-1', action: 'Created' },
+      { timestamp: new Date('2024-07-16T11:30:00Z').toISOString(), userId: 'user-2', action: 'Approved', comments: 'Looks good.' },
+    ],
+  },
+  {
+    id: 'exp-2',
+    title: 'Stage and Lighting Setup',
+    amount: 150000,
+    category: 'Services',
+    vendor: 'Event Masters',
+    date: new Date('2024-08-01T14:00:00Z').toISOString(),
+    budgetId: 'budget-1',
+    submittedBy: 'user-1',
+    status: 'Submitted',
+    receiptUrl: 'https://picsum.photos/seed/receipt2/400/600',
+    auditTrail: [{ timestamp: new Date('2024-08-01T14:00:00Z').toISOString(), userId: 'user-1', action: 'Created' }],
+  },
+  {
+    id: 'exp-3',
+    title: 'New Football Kits',
+    amount: 85000,
+    category: 'Equipment',
+    vendor: 'Sports United',
+    date: new Date('2024-07-20T09:00:00Z').toISOString(),
+    budgetId: 'budget-3',
+    submittedBy: 'user-1',
+    status: 'Rejected',
+    receiptUrl: 'https://picsum.photos/seed/receipt3/400/600',
+    auditTrail: [
+      { timestamp: new Date('2024-07-20T09:00:00Z').toISOString(), userId: 'user-1', action: 'Created' },
+      {
+        timestamp: new Date('2024-07-21T16:00:00Z').toISOString(),
+        userId: 'user-2',
+        action: 'Rejected',
+        comments: 'Quote is too high. Please find alternative vendors.',
+      },
+    ],
+  },
+];
+
+// Context Type
+interface ClarityContextType {
+  users: User[];
+  currentUser: User | null;
+  setCurrentUser: (user: User | null) => void;
+  login: (role: Role) => void;
+  logout: () => void;
+  budgets: Budget[];
+  addBudget: (budget: Omit<Budget, 'id'>) => void;
+  expenses: Expense[];
+  addExpense: (expense: Omit<Expense, 'id' | 'submittedBy' | 'auditTrail' | 'status'>) => void;
+  updateExpenseStatus: (expenseId: string, status: 'Approved' | 'Rejected', comments: string) => void;
+  getExpensesForBudget: (budgetId: string) => Expense[];
+  getBudgetById: (budgetId: string) => Budget | undefined;
+  getExpenseById: (expenseId: string) => Expense | undefined;
+  getUserById: (userId: string) => User | undefined;
+  departments: string[];
+  expenseCategories: string[];
+}
+
+const ClarityContext = createContext<ClarityContextType | undefined>(undefined);
+
+// Provider Component
+export const ClarityProvider = ({ children }: { children: ReactNode }) => {
+  const [users] = useState<User[]>(initialUsers);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [budgets, setBudgets] = useState<Budget[]>(initialBudgets);
+  const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
+
+  const login = (role: Role) => {
+    const user = users.find((u) => u.role === role);
+    setCurrentUser(user || null);
+  };
+
+  const logout = () => {
+    setCurrentUser(null);
+  };
+
+  const addBudget = (budgetData: Omit<Budget, 'id'>) => {
+    const newBudget: Budget = {
+      ...budgetData,
+      id: `budget-${Date.now()}`,
+    };
+    setBudgets((prev) => [...prev, newBudget]);
+  };
+  
+  const addExpense = (expenseData: Omit<Expense, 'id' | 'submittedBy' | 'auditTrail' | 'status'>) => {
+    if (!currentUser) throw new Error("No user logged in");
+    const newExpense: Expense = {
+      ...expenseData,
+      id: `exp-${Date.now()}`,
+      submittedBy: currentUser.id,
+      status: 'Submitted',
+      auditTrail: [
+        {
+          timestamp: new Date().toISOString(),
+          userId: currentUser.id,
+          action: 'Created',
+        },
+      ],
+    };
+    setExpenses((prev) => [...prev, newExpense]);
+  };
+
+  const updateExpenseStatus = (expenseId: string, status: 'Approved' | 'Rejected', comments: string) => {
+    if (!currentUser || currentUser.role !== 'Reviewer') throw new Error("Unauthorized");
+    setExpenses((prev) =>
+      prev.map((exp) => {
+        if (exp.id === expenseId) {
+          const newAuditLog = {
+            timestamp: new Date().toISOString(),
+            userId: currentUser.id,
+            action: status === 'Approved' ? 'Approved' : 'Rejected',
+            comments,
+          };
+          return {
+            ...exp,
+            status,
+            auditTrail: [...exp.auditTrail, newAuditLog],
+          };
+        }
+        return exp;
+      })
+    );
+  };
+
+  const getExpensesForBudget = (budgetId: string) => expenses.filter(e => e.budgetId === budgetId);
+  const getBudgetById = (budgetId: string) => budgets.find(b => b.id === budgetId);
+  const getExpenseById = (expenseId: string) => expenses.find(e => e.id === expenseId);
+  const getUserById = (userId: string) => users.find(u => u.id === userId);
+
+  const value = {
+    users,
+    currentUser,
+    setCurrentUser,
+    login,
+    logout,
+    budgets,
+    addBudget,
+    expenses,
+    addExpense,
+    updateExpenseStatus,
+    getExpensesForBudget,
+    getBudgetById,
+    getExpenseById,
+    getUserById,
+    departments: DEPARTMENTS,
+    expenseCategories: EXPENSE_CATEGORIES,
+  };
+
+  return <ClarityContext.Provider value={value}>{children}</ClarityContext.Provider>;
+};
+
+// Custom Hook
+export const useClarity = () => {
+  const context = useContext(ClarityContext);
+  if (context === undefined) {
+    throw new Error('useClarity must be used within a ClarityProvider');
+  }
+  return context;
+};
