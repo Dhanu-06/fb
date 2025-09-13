@@ -259,7 +259,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     uploadAndUpdateReceipt();
   };
 
-  const updateExpense = async (expenseId: string, expenseData: ExpenseUpdate, comment: string = "Expense details updated by Admin.") => {
+  const updateExpense = async (expenseId: string, expenseData: ExpenseUpdate) => {
     if (!currentUser || currentUser.role !== 'Admin') throw new Error("Permission denied.");
 
     const expenseRef = doc(db, 'expenses', expenseId);
@@ -272,7 +272,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
       timestamp: new Date().toISOString(),
       userId: currentUser.id,
       action: 'Updated',
-      comments: `${comment} Resubmitted for approval.`,
+      comments: 'Expense details updated and re-submitted for approval.',
     };
     const updatedTrail = [...(existingExpense.auditTrail || []), newAuditLog];
 
@@ -295,14 +295,14 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
         ...expenseData,
         receiptUrl,
         auditTrail: updatedTrail,
-        status: 'Submitted' as ExpenseStatus, // Reset status to re-trigger approval
+        status: 'Submitted' as ExpenseStatus, 
     };
 
     await updateDoc(expenseRef, finalUpdateData);
 
     setExpenses(prev =>
         prev.map(exp =>
-            exp.id === expenseId ? { ...exp, ...existingExpense, ...finalUpdateData } as Expense : exp
+            exp.id === expenseId ? { ...existingExpense, ...finalUpdateData } as Expense : exp
         )
     );
   }
