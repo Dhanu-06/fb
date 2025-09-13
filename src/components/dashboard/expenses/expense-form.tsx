@@ -91,10 +91,10 @@ export function ExpenseForm({ expense }: { expense?: Expense }) {
 
     try {
         if (expense) {
-            await updateExpense(expense.id, expenseData, 'Expense details manually updated.');
+            await updateExpense(expense.id, expenseData);
             toast({
               title: 'Expense Updated',
-              description: `"${title}" has been successfully updated.`,
+              description: `"${title}" has been resubmitted for approval.`,
             });
         } else {
             await addExpense(expenseData);
@@ -127,7 +127,7 @@ export function ExpenseForm({ expense }: { expense?: Expense }) {
   };
 
   const pageTitle = expense ? "Edit Expense" : "Submit New Expense";
-  const pageDescription = expense ? "Update the details below." : "Fill in the details below and upload a receipt for verification.";
+  const pageDescription = expense ? "Update the details and resubmit for approval." : "Fill in the details below and upload a receipt for verification.";
 
 
   return (
@@ -227,7 +227,7 @@ export function ExpenseForm({ expense }: { expense?: Expense }) {
             <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              {expense ? 'Save Changes' : 'Submit Expense'}
+              {expense ? 'Save & Resubmit' : 'Submit Expense'}
             </Button>
           </div>
         </form>

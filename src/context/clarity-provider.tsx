@@ -220,7 +220,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
           timestamp: new Date().toISOString(),
           userId: currentUser.id,
           action: 'Created',
-          comments: 'Expense submitted',
+          comments: 'Expense submitted for review.',
         },
       ],
       ...expenseData,
@@ -259,7 +259,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     uploadAndUpdateReceipt();
   };
 
-  const updateExpense = async (expenseId: string, expenseData: ExpenseUpdate, comment: string = "Expense details updated.") => {
+  const updateExpense = async (expenseId: string, expenseData: ExpenseUpdate, comment: string = "Expense details updated by Admin.") => {
     if (!currentUser || currentUser.role !== 'Admin') throw new Error("Permission denied.");
 
     const expenseRef = doc(db, 'expenses', expenseId);
@@ -272,12 +272,20 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
       timestamp: new Date().toISOString(),
       userId: currentUser.id,
       action: 'Updated',
-      comments: comment,
+      comments: `${comment} Resubmitted for approval.`,
     };
     const updatedTrail = [...(existingExpense.auditTrail || []), newAuditLog];
 
     let receiptUrl = existingExpense.receiptUrl;
     if (expenseData.receiptUrl && expenseData.receiptUrl !== existingExpense.receiptUrl) {
+      if (existingExpense.receiptUrl && !existingExpense.receiptUrl.includes('picsum.photos')) {
+          try {
+            const oldReceiptRef = ref(storage, existingExpense.receiptUrl);
+            await deleteObject(oldReceiptRef);
+          } catch (error) {
+            console.warn("Could not delete old receipt from storage:", error);
+          }
+      }
       const storageRef = ref(storage, `receipts/${currentUser.institutionId}/${expenseId}-${Date.now()}`);
       const uploadResult = await uploadString(storageRef, expenseData.receiptUrl, 'data_url');
       receiptUrl = await getDownloadURL(uploadResult.ref);
@@ -286,7 +294,8 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     const finalUpdateData = {
         ...expenseData,
         receiptUrl,
-        auditTrail: updatedTrail
+        auditTrail: updatedTrail,
+        status: 'Submitted' as ExpenseStatus, // Reset status to re-trigger approval
     };
 
     await updateDoc(expenseRef, finalUpdateData);
