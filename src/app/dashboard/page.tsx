@@ -3,13 +3,18 @@ import { StatsCards } from "@/components/dashboard/overview/stats-cards";
 import { BudgetSummaryChart } from "@/components/dashboard/overview/budget-summary-chart";
 import { RecentExpenses } from "@/components/dashboard/overview/recent-expenses";
 import { useClarity } from "@/context/clarity-provider";
-import { PublicDashboard } from "@/components/dashboard/public/public-dashboard";
 
 export default function DashboardPage() {
   const { currentUser } = useClarity();
 
-  if (currentUser?.role === 'Public') {
-    return <PublicDashboard />;
+  // The public dashboard is now a separate page, so this check is simpler.
+  if (!currentUser || (currentUser.role !== 'Admin' && currentUser.role !== 'Reviewer')) {
+    // You can show a message or a restricted view if needed.
+    return (
+        <div className="text-center p-10">
+            <p className="text-lg text-muted-foreground">Welcome to your dashboard. Select an option from the sidebar.</p>
+        </div>
+    );
   }
 
   return (

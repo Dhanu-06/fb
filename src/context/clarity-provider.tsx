@@ -33,6 +33,7 @@ interface ClarityContextType {
   expenseCategories: string[];
   paymentModes: PaymentMode[];
   publicStats: PublicStats;
+  fetchAllPublicData: () => Promise<{ institutions: Institution[], budgets: Budget[], expenses: Expense[] }>;
 }
 
 const ClarityContext = createContext<ClarityContextType | undefined>(undefined);
@@ -51,7 +52,6 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setIsLoading(true);
       if (firebaseUser) {
-        // Fetch user profile from Firestore
         const userDocRef = doc(db, 'users', firebaseUser.uid);
         const userSnapshot = await getDoc(userDocRef);
         if (userSnapshot.exists()) {
@@ -60,11 +60,12 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
         } else {
             console.error("No user profile found in Firestore for UID:", firebaseUser.uid);
             setCurrentUser(null);
+            setIsLoading(false);
         }
       } else {
         setCurrentUser(null);
+        setIsLoading(false);
       }
-      setIsLoading(false);
     });
     return () => unsubscribe();
   }, []);
@@ -72,12 +73,12 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const fetchAllData = async () => {
       if (!currentUser) {
-        // Clear data if no user is logged in
         setBudgets([]);
         setExpenses([]);
         setPayments([]);
         setInstitutions([]);
         setUsers([]);
+        setIsLoading(false);
         return;
       };
 
@@ -85,7 +86,6 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
 
       const instId = currentUser.institutionId;
 
-      // Fetch institutions, users, budgets, expenses, payments
       try {
         const institutionsQuery = query(collection(db, 'institutions'), where('id', '==', instId));
         const usersQuery = query(collection(db, 'users'), where('institutionId', '==', instId));
@@ -109,13 +109,35 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
           console.error("Error fetching data:", error);
       } finally {
-        // This isLoading(false) was inside onAuthStateChanged, moved here to signal data loading is done.
         setIsLoading(false);
       }
     }
 
     fetchAllData();
   }, [currentUser]);
+
+  const fetchAllPublicData = async () => {
+    try {
+      const institutionsQuery = query(collection(db, 'institutions'));
+      const budgetsQuery = query(collection(db, 'budgets'));
+      const expensesQuery = query(collection(db, 'expenses'), where('status', '==', 'Approved'));
+
+      const [instSnap, budgetsSnap, expensesSnap] = await Promise.all([
+        getDocs(institutionsQuery),
+        getDocs(budgetsQuery),
+        getDocs(expensesQuery)
+      ]);
+
+      const institutions = instSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Institution));
+      const budgets = budgetsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Budget));
+      const expenses = expensesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
+      
+      return { institutions, budgets, expenses };
+    } catch (error) {
+        console.error("Error fetching public data:", error);
+        return { institutions: [], budgets: [], expenses: [] };
+    }
+  };
 
 
   const login = async (email: string, password: string): Promise<User> => {
@@ -126,13 +148,11 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("User profile not found in database.");
     }
     const userData = { id: userSnapshot.id, ...userSnapshot.data() } as User;
-    // No need to set current user here, onAuthStateChanged will handle it.
     return userData;
   };
 
   const logout = async () => {
     await signOut(auth);
-    setCurrentUser(null);
   };
 
   const signup = async (data: SignupData): Promise<User> => {
@@ -143,7 +163,6 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
         role: data.role,
         institutionId: data.institutionId,
     };
-    // Use the user's UID as the document ID in Firestore
     await setDoc(doc(db, "users", userCredential.user.uid), newUser);
     return { id: userCredential.user.uid, ...newUser };
   };
@@ -282,6 +301,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     expenseCategories: EXPENSE_CATEGORIES,
     paymentModes: PAYMENT_MODES,
     publicStats,
+    fetchAllPublicData,
   };
 
   return <ClarityContext.Provider value={value}>{children}</ClarityContext.Provider>;

@@ -24,19 +24,15 @@ export function LoginForm() {
   const { login } = useClarity();
   const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const user = login(email, password);
+      const user = await login(email, password);
       toast({
         title: 'Login Successful',
         description: `Welcome back, ${user.name}!`,
       });
-      if (user.role === 'Public') {
-        router.push('/public');
-      } else {
-        router.push('/dashboard');
-      }
+      router.push('/dashboard');
     } catch (error: any) {
       toast({
         title: 'Login Failed',

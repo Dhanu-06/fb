@@ -16,6 +16,11 @@ export default function Home() {
         <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
           <Logo />
           <nav className="flex items-center gap-4">
+             <Button asChild variant="ghost">
+                <Link href="/public">
+                    Public Dashboard
+                </Link>
+             </Button>
             <Button asChild>
               <Link href="/login">
                 Login / Signup <ArrowRight className="ml-2 h-4 w-4" />
@@ -46,7 +51,12 @@ export default function Home() {
             <div className="mt-8 flex justify-center gap-4">
               <Button size="lg" asChild>
                 <Link href="/login">
-                  Get Started <ArrowRight className="ml-2" />
+                  Admin Login <ArrowRight className="ml-2" />
+                </Link>
+              </Button>
+               <Button size="lg" variant="secondary" asChild>
+                <Link href="/public">
+                  View Public Data <Eye className="ml-2" />
                 </Link>
               </Button>
             </div>

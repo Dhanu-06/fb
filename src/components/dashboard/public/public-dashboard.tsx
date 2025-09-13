@@ -1,176 +1,148 @@
 'use client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState } from "react";
 import { useClarity } from "@/context/clarity-provider";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } from "recharts";
-import { useMemo, useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search } from "lucide-react";
+import type { Institution, Budget, Expense } from "@/lib/types";
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
+
+interface PublicData {
+    institutions: Institution[];
+    budgets: Budget[];
+    expenses: Expense[];
+}
 
 export function PublicDashboard() {
-  const { publicStats, expenses, getBudgetById } = useClarity();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filters, setFilters] = useState({
-    category: '',
-    vendor: '',
-    date: ''
-  });
+    const { fetchAllPublicData } = useClarity();
+    const [data, setData] = useState<PublicData | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-  const approvedExpenses = useMemo(() => {
-    return expenses.filter(e => e.status === 'Approved');
-  }, [expenses]);
+    useEffect(() => {
+        const loadData = async () => {
+            setIsLoading(true);
+            const publicData = await fetchAllPublicData();
+            setData(publicData);
+            setIsLoading(false);
+        };
+        loadData();
+    }, [fetchAllPublicData]);
 
-  const filteredExpenses = useMemo(() => {
-    return approvedExpenses
-      .filter(expense => {
-        const budget = getBudgetById(expense.budgetId);
-        if (!budget) return false;
-
-        const searchMatch =
-          expense.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          expense.vendor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          budget.department.toLowerCase().includes(searchTerm.toLowerCase());
-
-        const categoryMatch = !filters.category || expense.category === filters.category;
-        const vendorMatch = !filters.vendor || expense.vendor === filters.vendor;
-        const dateMatch = !filters.date || new Date(expense.date).toDateString() === new Date(filters.date).toDateString();
-
-        return searchMatch && categoryMatch && vendorMatch && dateMatch;
-      })
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [approvedExpenses, searchTerm, filters, getBudgetById]);
-
-  const handleFilterChange = (filterName: string, value: string) => {
-    setFilters(prev => ({ ...prev, [filterName]: value }));
-  };
-
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'Approved': return 'secondary';
-      case 'Rejected': return 'destructive';
-      default: return 'outline';
+    if (isLoading) {
+        return (
+             <div className="flex h-[50vh] items-center justify-center">
+                <div className="text-center">
+                    <div className="h-8 w-8 mx-auto mb-4 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                    <p className="text-muted-foreground">Loading Public Data...</p>
+                </div>
+            </div>
+        )
     }
-  };
 
-  return (
-    <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Financial Overview</CardTitle>
-          <CardDescription>A summary of allocated funds versus approved spending.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-3">
-            <div className="p-4 rounded-lg bg-muted">
-                <p className="text-sm text-muted-foreground">Total Allocated Budget</p>
-                <p className="text-2xl font-bold">{formatCurrency(publicStats.totalAllocated)}</p>
+    if (!data || data.institutions.length === 0) {
+        return (
+            <div className="text-center p-10">
+                <p className="text-lg text-muted-foreground">No public data available at the moment.</p>
             </div>
-             <div className="p-4 rounded-lg bg-muted">
-                <p className="text-sm text-muted-foreground">Total Spent (Approved)</p>
-                <p className="text-2xl font-bold">{formatCurrency(publicStats.totalSpent)}</p>
-            </div>
-             <div className="p-4 rounded-lg bg-muted">
-                <p className="text-sm text-muted-foreground">Remaining Funds</p>
-                <p className="text-2xl font-bold">{formatCurrency(publicStats.totalAllocated - publicStats.totalSpent)}</p>
-            </div>
-        </CardContent>
-      </Card>
-      
-      <Card>
-          <CardHeader>
-            <CardTitle>Department Spending</CardTitle>
-            <CardDescription>Budget utilization across different departments.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={publicStats.departmentData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="department" stroke="hsl(var(--foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="hsl(var(--foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => formatCurrency(value as number)}/>
-                    <Tooltip
-                    contentStyle={{
-                        backgroundColor: 'hsl(var(--background))',
-                        borderColor: 'hsl(var(--border))',
-                    }}
-                    formatter={(value) => formatCurrency(value as number)}
-                    />
-                    <Legend />
-                    <Bar dataKey="allocated" fill="hsl(var(--accent))" name="Allocated" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="spent" fill="hsl(var(--primary))" name="Spent" radius={[4, 4, 0, 0]} />
-                </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-      </Card>
+        )
+    }
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Approved Expenses</CardTitle>
-          <CardDescription>A detailed list of all approved expenses.</CardDescription>
-        </CardHeader>
-        <CardContent>
-           <div className="flex items-center gap-4 mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Search expenses..."
-                className="pl-8 sm:w-1/2 md:w-1/3"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+    const getChartData = (institutionId: string) => {
+        const institutionBudgets = data.budgets.filter(b => b.institutionId === institutionId);
+        const institutionExpenses = data.expenses.filter(e => e.institutionId === institutionId && e.status === 'Approved');
+        
+        const departments = [...new Set(institutionBudgets.map(b => b.department))];
+
+        return departments.map(dept => {
+            const allocated = institutionBudgets.filter(b => b.department === dept).reduce((sum, b) => sum + b.allocated, 0);
+            const spent = institutionExpenses.filter(e => {
+                const budget = institutionBudgets.find(b => b.id === e.budgetId);
+                return budget?.department === dept;
+            }).reduce((sum, e) => sum + e.amount, 0);
+            return { name: dept, Allocated: allocated, Spent: spent };
+        }).filter(d => d.Allocated > 0 || d.Spent > 0);
+    }
+
+    return (
+        <div className="container mx-auto py-8">
+            <div className="text-center mb-8">
+                <h1 className="text-4xl font-bold">Public Transparency Dashboard</h1>
+                <p className="text-muted-foreground mt-2">An open view of financial data for all participating institutions.</p>
             </div>
-            {/* Add filter dropdowns here if needed */}
-          </div>
-           <div className="overflow-hidden rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead>Vendor</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead>Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredExpenses.length > 0 ? (
-                  filteredExpenses.map((expense) => {
-                    const budget = getBudgetById(expense.budgetId);
+            <Accordion type="single" collapsible className="w-full">
+                {data.institutions.map(inst => {
+                    const instBudgets = data.budgets.filter(b => b.institutionId === inst.id);
+                    const instExpenses = data.expenses.filter(e => e.institutionId === inst.id);
+                    const totalAllocated = instBudgets.reduce((sum, b) => sum + b.allocated, 0);
+                    const totalSpent = instExpenses.reduce((sum, e) => sum + e.amount, 0);
+                     const chartData = getChartData(inst.id);
+
                     return (
-                      <TableRow key={expense.id}>
-                        <TableCell className="font-medium">{expense.title}</TableCell>
-                        <TableCell>{budget?.department || 'N/A'}</TableCell>
-                        <TableCell>{expense.vendor}</TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(expense.amount)}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant={getStatusVariant(expense.status)}>
-                            {expense.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {new Date(expense.date).toLocaleDateString()}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
-                      No approved expenses found.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
-    </div>
-  );
+                        <AccordionItem value={inst.id} key={inst.id}>
+                            <AccordionTrigger className="text-xl font-semibold hover:no-underline">
+                                {inst.name}
+                            </AccordionTrigger>
+                            <AccordionContent>
+                                <div className="grid gap-6 p-4">
+                                     <div className="grid md:grid-cols-2 gap-4">
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle>Overall Financials</CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="grid grid-cols-2 gap-4 text-center">
+                                                <div>
+                                                    <p className="text-sm text-muted-foreground">Total Allocated</p>
+                                                    <p className="text-2xl font-bold">{formatCurrency(totalAllocated)}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-sm text-muted-foreground">Total Spent (Approved)</p>
+                                                    <p className="text-2xl font-bold">{formatCurrency(totalSpent)}</p>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle>Department Spending</CardTitle>
+                                                <CardDescription>Allocated vs. Spent per department.</CardDescription>
+                                            </CardHeader>
+                                            <CardContent>
+                                                 <ResponsiveContainer width="100%" height={200}>
+                                                    <BarChart data={chartData}>
+                                                        <XAxis dataKey="name" stroke="hsl(var(--foreground))" fontSize={10} tickLine={false} axisLine={false} />
+                                                        <YAxis stroke="hsl(var(--foreground))" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => `₹${Number(value)/1000}k`}/>
+                                                        <Tooltip
+                                                          contentStyle={{ backgroundColor: 'hsl(var(--background))', borderColor: 'hsl(var(--border))' }}
+                                                          formatter={(value) => formatCurrency(value as number)}
+                                                        />
+                                                        <Bar dataKey="Allocated" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                                                        <Bar dataKey="Spent" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                                                    </BarChart>
+                                                </ResponsiveContainer>
+                                            </CardContent>
+                                        </Card>
+                                     </div>
+                                     <div>
+                                        <h3 className="text-lg font-semibold mb-2">Approved Expenses</h3>
+                                        {instExpenses.length > 0 ? (
+                                            <div className="border rounded-lg">
+                                                {instExpenses.map(exp => (
+                                                    <div key={exp.id} className="p-3 border-b text-sm grid grid-cols-3 gap-2 items-center">
+                                                        <span className="font-medium">{exp.title}</span>
+                                                        <span>{exp.vendor}</span>
+                                                        <span className="text-right font-semibold">{formatCurrency(exp.amount)}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">No approved expenses to show.</p>
+                                        )}
+                                     </div>
+                                </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                    )
+                })}
+            </Accordion>
+        </div>
+    );
 }
