@@ -89,7 +89,7 @@ export function LoginForm() {
         </div>
         <Button variant="secondary" size="sm" asChild className="w-full">
             <Link href="/public">
-                <Eye className="mr-2" /> View Public Dashboard
+                <Eye className="mr-2 h-4 w-4" /> View Public Dashboard
             </Link>
         </Button>
       </CardFooter>
