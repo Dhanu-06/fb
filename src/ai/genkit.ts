@@ -3,7 +3,6 @@
  * It sets up the necessary plugins, such as Google AI, and exports the
  * configured `ai` object for use throughout the application.
  */
-'use server';
 
 import {genkit} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai';
