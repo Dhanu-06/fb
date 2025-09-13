@@ -1,10 +1,10 @@
 'use client';
 
-import type { Budget, Expense, Role, User, PublicStats, SignupData, Institution, PaymentMode, Payment } from '@/lib/types';
+import type { Budget, Expense, Role, User, PublicStats, SignupData, Institution, PaymentMode, Payment, ExpenseStatus, AuditLogAction } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { DEPARTMENTS, EXPENSE_CATEGORIES, PAYMENT_MODES } from '@/lib/types';
 import { auth, db } from '@/lib/firebase';
-import { collection, getDocs, query, where, addDoc, updateDoc, doc, Timestamp } from "firebase/firestore";
+import { collection, getDocs, query, where, addDoc, updateDoc, doc, setDoc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
 
@@ -15,14 +15,14 @@ interface ClarityContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<User>;
   logout: () => void;
-  signup: (data: Omit<SignupData, 'institutionId'>) => Promise<User>;
+  signup: (data: SignupData) => Promise<User>;
   institutions: Institution[];
   getInstitutionById: (institutionId: string) => Institution | undefined;
   budgets: Budget[];
   addBudget: (budget: Omit<Budget, 'id' | 'institutionId'>) => Promise<void>;
   expenses: Expense[];
   addExpense: (expense: Omit<Expense, 'id' | 'submittedBy' | 'auditTrail' | 'status' | 'institutionId'>) => Promise<void>;
-  updateExpenseStatus: (expenseId: string, status: 'Approved' | 'Rejected', comments: string) => Promise<void>;
+  updateExpenseStatus: (expenseId: string, status: ExpenseStatus, comments: string) => Promise<void>;
   payments: Payment[];
   addPayment: (payment: Omit<Payment, 'id' | 'institutionId'>) => Promise<void>;
   getExpensesForBudget: (budgetId: string) => Expense[];
@@ -51,20 +51,17 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         // Fetch user profile from Firestore
-        const userQuery = query(collection(db, 'users'), where('id', '==', firebaseUser.uid));
-        const userSnapshot = await getDocs(userQuery);
-        if (!userSnapshot.empty) {
-          const userDoc = userSnapshot.docs[0];
-          const userData = { id: userDoc.id, ...userDoc.data() } as User;
+        const userDocRef = doc(db, 'users', firebaseUser.uid);
+        const userSnapshot = await getDoc(userDocRef);
+        if (userSnapshot.exists()) {
+          const userData = { id: userSnapshot.id, ...userSnapshot.data() } as User;
           setCurrentUser(userData);
-          localStorage.setItem('clarity-user', JSON.stringify(userData));
         } else {
+            console.error("No user profile found in Firestore for UID:", firebaseUser.uid);
             setCurrentUser(null);
-            localStorage.removeItem('clarity-user');
         }
       } else {
         setCurrentUser(null);
-        localStorage.removeItem('clarity-user');
       }
       setIsLoading(false);
     });
@@ -87,27 +84,31 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
       const instId = currentUser.institutionId;
 
       // Fetch institutions, users, budgets, expenses, payments
-      const institutionsQuery = query(collection(db, 'institutions'), where('id', '==', instId));
-      const usersQuery = query(collection(db, 'users'), where('institutionId', '==', instId));
-      const budgetsQuery = query(collection(db, 'budgets'), where('institutionId', '==', instId));
-      const expensesQuery = query(collection(db, 'expenses'), where('institutionId', '==', instId));
-      const paymentsQuery = query(collection(db, 'payments'), where('institutionId', '==', instId));
-      
-      const [instSnap, usersSnap, budgetsSnap, expensesSnap, paymentsSnap] = await Promise.all([
-        getDocs(institutionsQuery),
-        getDocs(usersQuery),
-        getDocs(budgetsQuery),
-        getDocs(expensesQuery),
-        getDocs(paymentsQuery)
-      ]);
+      try {
+        const institutionsQuery = query(collection(db, 'institutions'), where('id', '==', instId));
+        const usersQuery = query(collection(db, 'users'), where('institutionId', '==', instId));
+        const budgetsQuery = query(collection(db, 'budgets'), where('institutionId', '==', instId));
+        const expensesQuery = query(collection(db, 'expenses'), where('institutionId', '==', instId));
+        const paymentsQuery = query(collection(db, 'payments'), where('institutionId', '==', instId));
+        
+        const [instSnap, usersSnap, budgetsSnap, expensesSnap, paymentsSnap] = await Promise.all([
+          getDocs(institutionsQuery),
+          getDocs(usersQuery),
+          getDocs(budgetsQuery),
+          getDocs(expensesQuery),
+          getDocs(paymentsQuery)
+        ]);
 
-      setInstitutions(instSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Institution)));
-      setUsers(usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
-      setBudgets(budgetsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Budget)));
-      setExpenses(expensesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense)));
-      setPayments(paymentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment)));
-
-      setIsLoading(false);
+        setInstitutions(instSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Institution)));
+        setUsers(usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
+        setBudgets(budgetsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Budget)));
+        setExpenses(expensesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense)));
+        setPayments(paymentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment)));
+      } catch (error) {
+          console.error("Error fetching data:", error);
+      } finally {
+        setIsLoading(false);
+      }
     }
     fetchAllData();
   }, [currentUser]);
@@ -115,35 +116,32 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string): Promise<User> => {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const userQuery = query(collection(db, 'users'), where('id', '==', userCredential.user.uid));
-    const userSnapshot = await getDocs(userQuery);
-    if (userSnapshot.empty) {
+    const userDocRef = doc(db, 'users', userCredential.user.uid);
+    const userSnapshot = await getDoc(userDocRef);
+    if (!userSnapshot.exists()) {
         throw new Error("User profile not found in database.");
     }
-    const userDoc = userSnapshot.docs[0];
-    const userData = { id: userDoc.id, ...userDoc.data() } as User;
+    const userData = { id: userSnapshot.id, ...userSnapshot.data() } as User;
     setCurrentUser(userData);
-    localStorage.setItem('clarity-user', JSON.stringify(userData));
     return userData;
   };
 
   const logout = async () => {
     await signOut(auth);
     setCurrentUser(null);
-    localStorage.removeItem('clarity-user');
   };
 
-  const signup = async (data: Omit<SignupData, 'institutionId'>): Promise<User> => {
+  const signup = async (data: SignupData): Promise<User> => {
      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password!);
-     const newUser: User = {
-        id: userCredential.user.uid,
+     const newUser: Omit<User, 'id'> = {
         name: data.name,
         email: data.email,
         role: data.role,
-        institutionId: 'inst-1', // Default institution for new signups
+        institutionId: data.institutionId,
     };
-    await addDoc(collection(db, "users"), newUser);
-    return newUser;
+    // Use the user's UID as the document ID in Firestore
+    await setDoc(doc(db, "users", userCredential.user.uid), newUser);
+    return { id: userCredential.user.uid, ...newUser };
   };
 
   const getInstitutionById = (id: string) => institutions.find(i => i.id === id);
@@ -184,22 +182,27 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     await addDoc(collection(db, 'payments'), newPayment);
   };
 
-  const updateExpenseStatus = async (expenseId: string, status: 'Approved' | 'Rejected', comments: string) => {
+  const updateExpenseStatus = async (expenseId: string, status: ExpenseStatus, comments: string) => {
     if (!currentUser || currentUser.role !== 'Reviewer') throw new Error("Unauthorized");
     
-    const expenseRef = doc(db, 'expenses', expenseId);
-    const currentExpense = expenses.find(e => e.id === expenseId);
-    if (!currentExpense) throw new Error("Expense not found");
+    const expenseDocRef = doc(db, 'expenses', expenseId);
+    const expenseSnapshot = await getDoc(expenseDocRef);
+
+    if (!expenseSnapshot.exists()) throw new Error("Expense not found");
+    const currentExpense = expenseSnapshot.data() as Expense;
     if(currentExpense.institutionId !== currentUser.institutionId) throw new Error("Unauthorized: You can only review expenses for your own institution.");
 
-    const newAuditLog = {
+    const newAuditLog: { timestamp: string; userId: string; action: AuditLogAction; comments?: string } = {
         timestamp: new Date().toISOString(),
         userId: currentUser.id,
-        action: status as 'Approved' | 'Rejected',
-        comments,
+        action: status,
     };
 
-    await updateDoc(expenseRef, {
+    if (comments) {
+      newAuditLog.comments = comments;
+    }
+
+    await updateDoc(expenseDocRef, {
         status: status,
         auditTrail: [...currentExpense.auditTrail, newAuditLog]
     });

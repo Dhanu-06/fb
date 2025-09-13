@@ -7,7 +7,6 @@ export interface User {
   name: string;
   role: Role;
   email: string;
-  password?: string;
   institutionId: string;
 }
 
@@ -16,6 +15,7 @@ export interface SignupData {
   email: string;
   password?: string;
   role: Role;
+  institutionId: string;
 }
 
 export interface Institution {
@@ -46,6 +46,8 @@ export interface Payment {
   createdAt: string; // ISO string
 }
 
+export type ExpenseStatus = 'Submitted' | 'Approved' | 'Rejected';
+
 export interface Expense {
   id: string;
   title: string;
@@ -57,16 +59,18 @@ export interface Expense {
   budgetId: string;
   institutionId: string;
   submittedBy: string; // User ID
-  status: 'Submitted' | 'Approved' | 'Rejected';
+  status: ExpenseStatus;
   paymentMode: PaymentMode;
   transactionReference?: string;
   auditTrail: AuditLog[];
 }
 
+export type AuditLogAction = 'Created' | 'Approved' | 'Rejected' | 'Updated';
+
 export interface AuditLog {
   timestamp: string; // ISO string
   userId: string;
-  action: 'Created' | 'Approved' | 'Rejected' | 'Updated';
+  action: AuditLogAction;
   comments?: string;
 }
 

@@ -34,10 +34,10 @@ export function SignupForm() {
   const { signup } = useClarity();
   const router = useRouter();
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      signup({ name, email, password, role });
+      await signup({ name, email, password, role, institutionId: 'inst-1' });
       toast({
         title: 'Signup Successful',
         description: 'You have been registered. Please log in.',
