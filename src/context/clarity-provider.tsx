@@ -22,7 +22,6 @@ import {
     where, 
     getDocs,
     Timestamp,
-    writeBatch, 
     updateDoc,
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
@@ -54,7 +53,6 @@ interface ClarityContextType {
   paymentModes: PaymentMode[];
   publicStats: PublicStats;
   fetchAllPublicData: () => Promise<{ institutions: Institution[], budgets: Budget[], expenses: Expense[] }>;
-  seedDatabase: () => Promise<void>;
 }
 
 const ClarityContext = createContext<ClarityContextType | undefined>(undefined);
@@ -291,51 +289,6 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const seedDatabase = async () => {
-    if (!currentUser || currentUser.role !== 'Admin') {
-        throw new Error("Only admins can seed the database.");
-    }
-    const batch = writeBatch(db);
-
-    const instId = currentUser.institutionId;
-
-    // Create a reviewer user
-    const reviewerEmail = `reviewer-${Date.now()}@clarity.com`;
-    // This part is tricky without a backend function to create users.
-    // For demo, we'll just add them to the users collection. They'd need to sign up.
-    // In a real app, you'd use Firebase Admin SDK.
-    const reviewerUser: Omit<User, 'id'> = {
-        name: 'Dr. Evelyn Reed',
-        role: 'Reviewer',
-        email: 'reviewer@clarity.com', // Static for demo, they need to signup with this
-        institutionId: instId,
-    };
-    // This won't create an auth user, just a profile.
-    const reviewerRef = doc(collection(db, 'users'));
-    batch.set(reviewerRef, reviewerUser);
-
-    // Sample Budgets
-    const sampleBudgets = [
-        { id: 'budget-1', institutionId: instId, title: 'Annual Library Fund', allocated: 500000, department: 'Library' },
-        { id: 'budget-2', institutionId: instId, title: 'University Sports Budget', allocated: 1200000, department: 'Sports' },
-        { id: 'budget-3', institutionId: instId, title: 'Campus Food Services', allocated: 800000, department: 'Food' },
-        { id: 'budget-4', institutionId: instId, title: 'Lab Equipment & Supplies', allocated: 2500000, department: 'Lab' },
-        { id: 'budget-5', institutionId: instId, title: 'Annual Tech Fest "Innovate"', allocated: 750000, department: 'Events' },
-        { id: 'budget-6', institutionId: instId, title: 'New Building Construction Phase 1', allocated: 50000000, department: 'Infrastructure & Construction' },
-        { id: 'budget-7', institutionId: instId, title: 'Faculty Development Programs', allocated: 600000, department: 'Academics' },
-        { id: 'budget-8', institutionId: instId, title: 'Administrative Overhead', allocated: 1500000, department: 'Administration' },
-    ];
-
-    sampleBudgets.forEach(budget => {
-        const budgetRef = doc(db, 'budgets', `${instId}_${budget.id}`);
-        batch.set(budgetRef, budget);
-    });
-
-    await batch.commit();
-    await fetchUserData(currentUser.id); // Refresh data
-  };
-
-
   const value = {
     users,
     currentUser,
@@ -361,7 +314,6 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     paymentModes: PAYMENT_MODES,
     publicStats,
     fetchAllPublicData,
-    seedDatabase,
   };
 
   return <ClarityContext.Provider value={value}>{children}</ClarityContext.Provider>;
