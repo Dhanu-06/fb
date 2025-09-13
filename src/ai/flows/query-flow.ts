@@ -8,7 +8,20 @@
 'use server';
 
 import { ai } from '@/ai/genkit';
-import { FinancialQueryInput, FinancialQueryInputSchema, FinancialQueryOutput, FinancialQueryOutputSchema } from '@/lib/types';
+import { z } from 'zod';
+import type { FinancialQueryInput, FinancialQueryOutput } from '@/lib/types';
+
+// Define Zod schemas locally for the flow. These are NOT exported.
+const FinancialQueryInputSchema = z.object({
+  query: z.string().describe('The natural language query from the user.'),
+  budgets: z.array(z.any()).describe('An array of budget objects available for analysis.'),
+  expenses: z.array(z.any()).describe('An array of expense objects available for analysis.'),
+});
+
+const FinancialQueryOutputSchema = z.object({
+  answer: z.string().describe('The generated answer to the user\'s query.'),
+});
+
 
 // Define the prompt for the AI model
 const queryPrompt = ai.definePrompt({

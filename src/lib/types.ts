@@ -98,18 +98,15 @@ export interface PublicStats {
     departmentData: PublicDepartmentStat[];
 }
 
-// AI Flow Schemas
-export const FinancialQueryInputSchema = z.object({
-  query: z.string().describe('The natural language query from the user.'),
-  budgets: z.array(z.any()).describe('An array of budget objects available for analysis.'),
-  expenses: z.array(z.any()).describe('An array of expense objects available for analysis.'),
-});
-export type FinancialQueryInput = z.infer<typeof FinancialQueryInputSchema>;
-
-export const FinancialQueryOutputSchema = z.object({
-  answer: z.string().describe('The generated answer to the user\'s query.'),
-});
-export type FinancialQueryOutput = z.infer<typeof FinancialQueryOutputSchema>;
+// AI Flow Schemas - Zod schemas are now in the flow file, but we keep the types here
+export type FinancialQueryInput = {
+  query: string;
+  budgets: any[];
+  expenses: any[];
+}
+export type FinancialQueryOutput = {
+  answer: string;
+}
 
 
 export const DEPARTMENTS = ["Library", "Sports", "Food", "Maintenance", "Lab", "Events", "Transport", "IT Services", "Student Welfare", "Administration", "Hostel", "Academics", "Research & Development", "Infrastructure & Construction"];
