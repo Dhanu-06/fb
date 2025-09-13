@@ -95,15 +95,8 @@ export function ExpenseForm() {
     }
     
     setIsSubmitting(true);
-    let receiptUrl = '';
 
     try {
-        // Upload receipt to Firebase Storage
-        const storage = getStorage();
-        const storageRef = ref(storage, `receipts/${Date.now()}-${Math.random().toString(36).substring(2)}`);
-        const uploadResult = await uploadString(storageRef, receiptDataUrl, 'data_url');
-        receiptUrl = await getDownloadURL(uploadResult.ref);
-
         await addExpense({
           title,
           amount: Number(amount),
@@ -111,7 +104,7 @@ export function ExpenseForm() {
           budgetId,
           category,
           date: new Date().toISOString(),
-          receiptUrl,
+          receiptUrl: receiptDataUrl,
           paymentMode: paymentMode,
           transactionReference,
         });
