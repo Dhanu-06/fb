@@ -10,7 +10,7 @@ import {
   SidebarFooter,
 } from '@/components/ui/sidebar';
 import { useClarity } from '@/context/clarity-provider';
-import { LayoutDashboard, Wallet, Receipt, LogOut, ShieldCheck, Users, Eye, IndianRupee, BarChartHorizontal } from 'lucide-react';
+import { LayoutDashboard, Wallet, Receipt, LogOut, ShieldCheck, Users, Eye, IndianRupee } from 'lucide-react';
 import { Logo } from '../logo';
 import { usePathname, useRouter } from 'next/navigation';
 
@@ -29,12 +29,6 @@ export function MainSidebar() {
       href: '/dashboard',
       icon: LayoutDashboard,
       label: 'Overview',
-      roles: ['Admin', 'Reviewer'],
-    },
-     {
-      href: '/dashboard/analysis',
-      icon: BarChartHorizontal,
-      label: 'Analysis',
       roles: ['Admin', 'Reviewer'],
     },
     {
