@@ -8,6 +8,7 @@ import { DEPARTMENTS, EXPENSE_CATEGORIES, PAYMENT_MODES } from '@/lib/types';
 const initialInstitutions: Institution[] = [
     { id: 'inst-1', name: 'Global Tech University' },
     { id: 'inst-2', name: 'City College of Arts' },
+    { id: 'inst-3', name: 'Sunshine Public School' },
 ]
 
 const initialUsers: User[] = [
@@ -15,6 +16,7 @@ const initialUsers: User[] = [
   { id: 'user-2', name: 'Reviewer User', role: 'Reviewer', email: 'reviewer@example.com', password: 'password', institutionId: 'inst-1' },
   { id: 'user-3', name: 'Public User', role: 'Public', email: 'public@example.com', password: 'password', institutionId: 'inst-1' },
   { id: 'user-4', name: 'Admin from another institution', role: 'Admin', email: 'admin2@example.com', password: 'password', institutionId: 'inst-2' },
+  { id: 'user-5', name: 'Sunshine Admin', role: 'Admin', email: 'admin3@example.com', password: 'password', institutionId: 'inst-3' },
 ];
 
 const initialBudgets: Budget[] = [
@@ -22,6 +24,7 @@ const initialBudgets: Budget[] = [
   { id: 'budget-2', title: 'Library Acquisition Q3', allocated: 1000000, department: 'Library', institutionId: 'inst-1' },
   { id: 'budget-3', title: 'Sports Equipment 2025', allocated: 750000, department: 'Sports', institutionId: 'inst-1' },
   { id: 'budget-4', title: 'Art Exhibition Materials', allocated: 200000, department: 'Academics', institutionId: 'inst-2' },
+  { id: 'budget-5', title: 'Annual Day Celebration', allocated: 300000, department: 'Events', institutionId: 'inst-3' },
 ];
 
 const initialExpenses: Expense[] = [
@@ -83,6 +86,22 @@ const initialExpenses: Expense[] = [
         comments: 'Quote is too high. Please find alternative vendors.',
       },
     ],
+  },
+  {
+    id: 'exp-4',
+    title: 'Science Lab Chemicals',
+    amount: 45000,
+    category: 'Supplies',
+    vendor: 'Chem Supplies Co.',
+    date: new Date('2024-08-05T11:00:00Z').toISOString(),
+    budgetId: 'budget-5',
+    institutionId: 'inst-3',
+    submittedBy: 'user-5',
+    status: 'Submitted',
+    receiptUrl: 'https://picsum.photos/seed/receipt4/400/600',
+    paymentMode: 'Bank Transfer',
+    transactionReference: 'BT-1122334455',
+    auditTrail: [{ timestamp: new Date('2024-08-05T11:00:00Z').toISOString(), userId: 'user-5', action: 'Created' }],
   },
 ];
 
