@@ -35,10 +35,10 @@ Be concise and clear in your answers. All monetary values are in Indian Rupees (
 
 Here is the data:
 Budgets:
-{{{json budgets}}}
+{{budgets}}
 
 Approved Expenses:
-{{{json expenses}}}
+{{expenses}}
 
 Now, please answer the following question:
 "{{query}}"
