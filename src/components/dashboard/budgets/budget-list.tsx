@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { CreateBudgetDialog } from "./create-budget-dialog";
+import { FeedbackDialog } from "./feedback-dialog";
 
 export function BudgetList() {
   const { budgets, getExpensesForBudget, currentUser } = useClarity();
@@ -24,11 +25,12 @@ export function BudgetList() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[40%]">Title</TableHead>
+              <TableHead className="w-[35%]">Title</TableHead>
               <TableHead>Department</TableHead>
               <TableHead>Spent / Allocated</TableHead>
-              <TableHead className="w-[20%] text-center">Utilization</TableHead>
+              <TableHead className="w-[15%] text-center">Utilization</TableHead>
               <TableHead className="text-right">Remaining</TableHead>
+              <TableHead className="w-[10%] text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -53,6 +55,9 @@ export function BudgetList() {
                     </div>
                   </TableCell>
                   <TableCell className="text-right font-medium">{formatCurrency(remaining)}</TableCell>
+                   <TableCell className="text-center">
+                    <FeedbackDialog budget={budget} />
+                  </TableCell>
                 </TableRow>
               );
             })}

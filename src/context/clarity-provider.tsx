@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { Budget, Expense, Role, User, PublicStats, SignupData, Institution, PaymentMode, Payment, AuditLog } from '@/lib/types';
+import type { Budget, Expense, Role, User, PublicStats, SignupData, Institution, PaymentMode, Payment, AuditLog, Feedback } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { DEPARTMENTS, EXPENSE_CATEGORIES, PAYMENT_MODES } from '@/lib/types';
 import { auth, db, storage } from '@/lib/firebase';
@@ -53,6 +53,7 @@ interface ClarityContextType {
   paymentModes: PaymentMode[];
   publicStats: PublicStats;
   fetchAllPublicData: () => Promise<{ institutions: Institution[], budgets: Budget[], expenses: Expense[] }>;
+  addFeedback: (feedback: Omit<Feedback, 'id' | 'createdAt'>) => void;
 }
 
 const ClarityContext = createContext<ClarityContextType | undefined>(undefined);
@@ -265,6 +266,16 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const addFeedback = async (feedbackData: Omit<Feedback, 'id' | 'createdAt'>) => {
+    const newFeedbackData = {
+      ...feedbackData,
+      createdAt: new Date().toISOString(),
+    };
+    await addDoc(collection(db, 'feedback'), newFeedbackData);
+    // We don't need to store feedback in local state for this app
+  };
+
+
   const getExpensesForBudget = (budgetId: string) => expenses.filter(e => e.budgetId === budgetId);
   const getBudgetById = (budgetId: string) => budgets.find(b => b.id === budgetId);
   const getExpenseById = (expenseId: string) => expenses.find(e => e.id === expenseId);
@@ -314,6 +325,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     paymentModes: PAYMENT_MODES,
     publicStats,
     fetchAllPublicData,
+    addFeedback,
   };
 
   return <ClarityContext.Provider value={value}>{children}</ClarityContext.Provider>;

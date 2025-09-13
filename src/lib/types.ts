@@ -74,6 +74,14 @@ export interface AuditLog {
   comments?: string;
 }
 
+export interface Feedback {
+    id: string;
+    budgetId: string;
+    comment: string;
+    createdAt: string; // ISO string
+    userId?: string; // Optional: for logged-in users
+}
+
 export interface PublicDepartmentStat {
     department: string;
     allocated: number;

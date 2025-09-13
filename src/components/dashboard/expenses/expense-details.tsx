@@ -11,36 +11,80 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { AuditTrail } from './audit-trail';
 import { Label } from '@/components/ui/label';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { AlertTriangle } from 'lucide-react';
+
 
 export function ExpenseDetails({ expense, onUpdate }: { expense: Expense; onUpdate: () => void }) {
-  const { getBudgetById, getUserById, currentUser, updateExpenseStatus } = useClarity();
+  const { getBudgetById, getUserById, currentUser, updateExpenseStatus, getExpensesForBudget } = useClarity();
   const { toast } = useToast();
   
   const [comments, setComments] = useState('');
+  const [showOverrunAlert, setShowOverrunAlert] = useState(false);
   
   const budget = getBudgetById(expense.budgetId);
   const submitter = getUserById(expense.submittedBy);
 
-  const handleStatusUpdate = (status: 'Approved' | 'Rejected') => {
-    if (!comments && status === 'Rejected') {
+  const proceedWithApproval = () => {
+     try {
+      updateExpenseStatus(expense.id, 'Approved', comments || 'Approved');
       toast({
-        title: 'Comment Required',
-        description: 'Please provide a comment before rejecting an expense.',
-        variant: 'destructive',
-      });
-      return;
-    }
-    try {
-      updateExpenseStatus(expense.id, status, comments || (status === 'Approved' ? 'Approved' : ''));
-      toast({
-        title: `Expense ${status}`,
-        description: `The expense "${expense.title}" has been ${status.toLowerCase()}.`
+        title: `Expense Approved`,
+        description: `The expense "${expense.title}" has been approved.`
       });
       setComments('');
       onUpdate();
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
+  }
+
+  const handleStatusUpdate = (status: 'Approved' | 'Rejected') => {
+    if (status === 'Rejected') {
+      if (!comments) {
+        toast({
+          title: 'Comment Required',
+          description: 'Please provide a comment before rejecting an expense.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      try {
+        updateExpenseStatus(expense.id, 'Rejected', comments);
+        toast({
+          title: `Expense Rejected`,
+          description: `The expense "${expense.title}" has been rejected.`
+        });
+        setComments('');
+        onUpdate();
+      } catch (error: any) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      }
+      return;
+    }
+
+    // Anomaly Detection for Approval
+    if (status === 'Approved' && budget) {
+        const approvedExpenses = getExpensesForBudget(budget.id).filter(e => e.status === 'Approved');
+        const spentAmount = approvedExpenses.reduce((sum, e) => sum + e.amount, 0);
+        const remainingBudget = budget.allocated - spentAmount;
+
+        if (expense.amount > remainingBudget) {
+            setShowOverrunAlert(true);
+            return;
+        }
+    }
+
+    proceedWithApproval();
   };
 
   const getStatusVariant = (status: string) => {
@@ -134,6 +178,27 @@ export function ExpenseDetails({ expense, onUpdate }: { expense: Expense; onUpda
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={showOverrunAlert} onOpenChange={setShowOverrunAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="text-destructive" />
+                Budget Overrun Warning
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Approving this expense of <span className="font-bold">{formatCurrency(expense.amount)}</span> will exceed the remaining funds in the <span className="font-bold">&quot;{budget?.title}&quot;</span> budget. Are you sure you want to proceed?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={proceedWithApproval}>
+                Confirm & Approve
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }
