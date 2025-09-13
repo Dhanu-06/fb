@@ -1,5 +1,5 @@
 
-
+import { z } from 'zod';
 
 export type Role = 'Admin' | 'Reviewer' | 'Public';
 
@@ -97,6 +97,20 @@ export interface PublicStats {
     totalSpent: number;
     departmentData: PublicDepartmentStat[];
 }
+
+// AI Flow Schemas
+export const FinancialQueryInputSchema = z.object({
+  query: z.string().describe('The natural language query from the user.'),
+  budgets: z.array(z.any()).describe('An array of budget objects available for analysis.'),
+  expenses: z.array(z.any()).describe('An array of expense objects available for analysis.'),
+});
+export type FinancialQueryInput = z.infer<typeof FinancialQueryInputSchema>;
+
+export const FinancialQueryOutputSchema = z.object({
+  answer: z.string().describe('The generated answer to the user\'s query.'),
+});
+export type FinancialQueryOutput = z.infer<typeof FinancialQueryOutputSchema>;
+
 
 export const DEPARTMENTS = ["Library", "Sports", "Food", "Maintenance", "Lab", "Events", "Transport", "IT Services", "Student Welfare", "Administration", "Hostel", "Academics", "Research & Development", "Infrastructure & Construction"];
 export const EXPENSE_CATEGORIES = ["Supplies", "Services", "Equipment", "Travel", "Utilities", "Miscellaneous"];

@@ -4,28 +4,11 @@
  *
  * This file exports:
  * - `queryFinancials`: The main function to call the flow.
- * - `FinancialQueryInput`: The Zod schema for the flow's input.
- * - `FinancialQueryOutput`: The Zod schema for the flow's output.
  */
 'use server';
 
 import { ai } from '@/ai/genkit';
-import { z } from 'zod';
-import type { Budget, Expense } from '@/lib/types';
-
-// Define the schema for the flow's input
-export const FinancialQueryInputSchema = z.object({
-  query: z.string().describe('The natural language query from the user.'),
-  budgets: z.array(z.any()).describe('An array of budget objects available for analysis.'),
-  expenses: z.array(z.any()).describe('An array of expense objects available for analysis.'),
-});
-export type FinancialQueryInput = z.infer<typeof FinancialQueryInputSchema>;
-
-// Define the schema for the flow's output
-export const FinancialQueryOutputSchema = z.object({
-  answer: z.string().describe('The generated answer to the user\'s query.'),
-});
-export type FinancialQueryOutput = z.infer<typeof FinancialQueryOutputSchema>;
+import { FinancialQueryInput, FinancialQueryInputSchema, FinancialQueryOutput, FinancialQueryOutputSchema } from '@/lib/types';
 
 // Define the prompt for the AI model
 const queryPrompt = ai.definePrompt({
