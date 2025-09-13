@@ -5,6 +5,12 @@
       "description": "Abstract background for login page",
       "imageUrl": "https://picsum.photos/seed/loginbg/1920/1080",
       "imageHint": "abstract geometric"
+    },
+    {
+      "id": "public-banner",
+      "description": "Banner image for the public transparency page",
+      "imageUrl": "https://picsum.photos/seed/publicbanner/1600/400",
+      "imageHint": "community meeting"
     }
   ]
 }

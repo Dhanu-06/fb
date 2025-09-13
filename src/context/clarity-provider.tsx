@@ -1,7 +1,7 @@
 'use client';
 
-import type { Budget, Expense, Role, User } from '@/lib/types';
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import type { Budget, Expense, Role, User, PublicStats } from '@/lib/types';
+import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
 import { DEPARTMENTS, EXPENSE_CATEGORIES } from '@/lib/types';
 
 // Mock Data
@@ -88,6 +88,7 @@ interface ClarityContextType {
   getUserById: (userId: string) => User | undefined;
   departments: string[];
   expenseCategories: string[];
+  publicStats: PublicStats;
 }
 
 const ClarityContext = createContext<ClarityContextType | undefined>(undefined);
@@ -161,6 +162,37 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
   const getExpenseById = (expenseId: string) => expenses.find(e => e.id === expenseId);
   const getUserById = (userId: string) => users.find(u => u.id === userId);
 
+  const publicStats = useMemo<PublicStats>(() => {
+    const totalAllocated = budgets.reduce((sum, b) => sum + b.allocated, 0);
+    const approvedExpenses = expenses.filter(e => e.status === 'Approved');
+    const totalSpent = approvedExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+    const departmentData = DEPARTMENTS.map(department => {
+      const departmentBudgets = budgets.filter(b => b.department === department);
+      const allocated = departmentBudgets.reduce((sum, b) => sum + b.allocated, 0);
+      
+      const departmentApprovedExpenses = approvedExpenses.filter(e => {
+        const budget = budgets.find(b => b.id === e.budgetId);
+        return budget?.department === department;
+      });
+      const spent = departmentApprovedExpenses.reduce((sum, e) => sum + e.amount, 0);
+      const utilization = allocated > 0 ? (spent / allocated) * 100 : 0;
+      
+      return {
+        department,
+        allocated,
+        spent,
+        utilization
+      };
+    }).filter(d => d.allocated > 0 || d.spent > 0);
+
+    return {
+      totalAllocated,
+      totalSpent,
+      departmentData
+    };
+  }, [budgets, expenses]);
+
   const value = {
     users,
     currentUser,
@@ -178,6 +210,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     getUserById,
     departments: DEPARTMENTS,
     expenseCategories: EXPENSE_CATEGORIES,
+    publicStats,
   };
 
   return <ClarityContext.Provider value={value}>{children}</ClarityContext.Provider>;

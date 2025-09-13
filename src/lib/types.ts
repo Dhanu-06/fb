@@ -36,5 +36,18 @@ export interface AuditLog {
   comments?: string;
 }
 
+export interface PublicDepartmentStat {
+    department: string;
+    allocated: number;
+    spent: number;
+    utilization: number;
+}
+
+export interface PublicStats {
+    totalAllocated: number;
+    totalSpent: number;
+    departmentData: PublicDepartmentStat[];
+}
+
 export const DEPARTMENTS = ["Library", "Sports", "Food", "Maintenance", "Lab", "Events"];
 export const EXPENSE_CATEGORIES = ["Supplies", "Services", "Equipment", "Travel", "Utilities", "Miscellaneous"];
