@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -5,9 +6,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useClarity } from '@/context/clarity-provider';
 import { useMemo } from 'react';
 import { formatCurrency } from '@/lib/utils';
+import type { Budget, Expense } from '@/lib/types';
 
-export function BudgetSummaryChart() {
-  const { budgets, expenses, departments } = useClarity();
+
+export function BudgetSummaryChart({ budgets: budgetsProp, expenses: expensesProp, departments: departmentsProp }: { budgets?: Budget[], expenses?: Expense[], departments?: string[] }) {
+  const context = useClarity();
+
+  const budgets = budgetsProp || context.budgets;
+  const expenses = expensesProp || context.expenses;
+  const departments = departmentsProp || context.departments;
 
   const chartData = useMemo(() => {
     return departments.map(department => {
@@ -27,6 +34,21 @@ export function BudgetSummaryChart() {
       };
     }).filter(d => d.Allocated > 0 || d.Spent > 0);
   }, [budgets, expenses, departments]);
+
+  if (chartData.length === 0) {
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Department Spending</CardTitle>
+                <CardDescription>Allocated budget vs. approved spending per department.</CardDescription>
+            </CardHeader>
+            <CardContent className="h-[350px] flex items-center justify-center">
+                 <p className="text-muted-foreground">No spending data available yet.</p>
+            </CardContent>
+        </Card>
+    )
+  }
+
 
   return (
     <Card>
@@ -56,3 +78,4 @@ export function BudgetSummaryChart() {
     </Card>
   );
 }
+

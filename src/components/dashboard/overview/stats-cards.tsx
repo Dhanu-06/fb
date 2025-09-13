@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useClarity } from '@/context/clarity-provider';
@@ -5,9 +6,15 @@ import { formatCurrency } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, Landmark, PiggyBank } from 'lucide-react';
 import { useMemo } from 'react';
+import type { Budget, Expense } from '@/lib/types';
 
-export function StatsCards() {
-  const { budgets, expenses } = useClarity();
+// Allow props to be passed for public page usage
+export function StatsCards({ budgets: budgetsProp, expenses: expensesProp }: { budgets?: Budget[], expenses?: Expense[] }) {
+  const context = useClarity();
+  
+  // Use props if provided, otherwise use context
+  const budgets = budgetsProp || context.budgets;
+  const expenses = expensesProp || context.expenses;
 
   const { totalBudget, totalSpent, remaining } = useMemo(() => {
     const totalBudget = budgets.reduce((sum, b) => sum + b.allocated, 0);
@@ -59,3 +66,4 @@ export function StatsCards() {
     </div>
   );
 }
+
