@@ -64,8 +64,6 @@ export function ExpenseForm() {
     setIsSubmitting(true);
 
     try {
-        const receiptUrl = receiptPreview || PlaceHolderImages.find(p => p.id === 'receipt-placeholder')?.imageUrl || '';
-
         await addExpense({
           title,
           amount: Number(amount),
@@ -73,7 +71,7 @@ export function ExpenseForm() {
           budgetId,
           category,
           date: new Date().toISOString(),
-          receiptUrl: receiptUrl,
+          receiptUrl: receiptPreview || '', // Pass the data URI
           paymentMode: paymentMode,
           transactionReference,
         });

@@ -17,6 +17,7 @@ import { Label } from '@/components/ui/label';
 import { useState } from 'react';
 import { Logo } from '../logo';
 import { toast } from '@/hooks/use-toast';
+import { Eye } from 'lucide-react';
 
 export function LoginForm() {
   const [email, setEmail] = useState('');
@@ -79,11 +80,18 @@ export function LoginForm() {
           </Button>
         </form>
       </CardContent>
-      <CardFooter className="flex justify-center text-sm">
-        Don't have an account?&nbsp;
-        <Link href="/signup" className="font-semibold text-primary hover:underline">
-          Sign up
-        </Link>
+      <CardFooter className="flex-col gap-4 text-sm">
+        <div className='flex justify-center'>
+            Don't have an account?&nbsp;
+            <Link href="/signup" className="font-semibold text-primary hover:underline">
+            Sign up
+            </Link>
+        </div>
+        <Button variant="secondary" size="sm" asChild className="w-full">
+            <Link href="/public">
+                <Eye className="mr-2" /> View Public Dashboard
+            </Link>
+        </Button>
       </CardFooter>
     </Card>
   );
