@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useClarity } from '@/context/clarity-provider';
 import { Button } from '@/components/ui/button';
@@ -16,11 +17,11 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import type { PaymentMode } from '@/lib/types';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
+import type { Expense, PaymentMode } from '@/lib/types';
+import Image from 'next/image';
 
-export function ExpenseForm() {
-  const { addExpense, budgets, expenseCategories, paymentModes } = useClarity();
+export function ExpenseForm({ expense }: { expense?: Expense }) {
+  const { addExpense, updateExpense, budgets, expenseCategories, paymentModes } = useClarity();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -29,18 +30,31 @@ export function ExpenseForm() {
   const [vendor, setVendor] = useState('');
   const [budgetId, setBudgetId] = useState('');
   const [category, setCategory] = useState('');
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   
   const [paymentMode, setPaymentMode] = useState<PaymentMode | ''>('');
   const [transactionReference, setTransactionReference] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (expense) {
+      setTitle(expense.title);
+      setAmount(String(expense.amount));
+      setVendor(expense.vendor);
+      setBudgetId(expense.budgetId);
+      setCategory(expense.category);
+      setPaymentMode(expense.paymentMode);
+      setTransactionReference(expense.transactionReference || '');
+      setDate(new Date(expense.date).toISOString().split('T')[0]);
+      setReceiptPreview(expense.receiptUrl || null);
+    }
+  }, [expense]);
   
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setReceiptFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         const dataUri = reader.result as string;
@@ -52,7 +66,7 @@ export function ExpenseForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !amount || !vendor || !budgetId || !category || !paymentMode) {
+    if (!title || !amount || !vendor || !budgetId || !category || !paymentMode || !date) {
       toast({
         title: 'Missing Fields',
         description: 'Please fill out all required fields.',
@@ -63,29 +77,38 @@ export function ExpenseForm() {
     
     setIsSubmitting(true);
 
-    try {
-        await addExpense({
-          title,
-          amount: Number(amount),
-          vendor,
-          budgetId,
-          category,
-          date: new Date().toISOString(),
-          receiptUrl: receiptPreview || '', // Pass the data URI
-          paymentMode: paymentMode,
-          transactionReference,
-        });
+    const expenseData = {
+      title,
+      amount: Number(amount),
+      vendor,
+      budgetId,
+      category,
+      date: new Date(date).toISOString(),
+      receiptUrl: receiptPreview || '',
+      paymentMode: paymentMode,
+      transactionReference,
+    };
 
-        toast({
-          title: 'Expense Submitted',
-          description: `"${title}" has been submitted for review.`,
-        });
+    try {
+        if (expense) {
+            await updateExpense(expense.id, expenseData, 'Expense details manually updated.');
+            toast({
+              title: 'Expense Updated',
+              description: `"${title}" has been successfully updated.`,
+            });
+        } else {
+            await addExpense(expenseData);
+            toast({
+              title: 'Expense Submitted',
+              description: `"${title}" has been submitted for review.`,
+            });
+        }
 
         router.push('/dashboard/expenses');
     } catch(error: any) {
         toast({
-            title: 'Submission Failed',
-            description: error.message || "An error occurred while submitting the expense.",
+            title: expense ? 'Update Failed' : 'Submission Failed',
+            description: error.message || "An error occurred.",
             variant: 'destructive',
         });
     } finally {
@@ -103,11 +126,15 @@ export function ExpenseForm() {
     }
   };
 
+  const pageTitle = expense ? "Edit Expense" : "Submit New Expense";
+  const pageDescription = expense ? "Update the details below." : "Fill in the details below and upload a receipt for verification.";
+
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Submit New Expense</CardTitle>
-        <CardDescription>Fill in the details below and upload a receipt for verification.</CardDescription>
+        <CardTitle>{pageTitle}</CardTitle>
+        <CardDescription>{pageDescription}</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="grid gap-6">
@@ -117,31 +144,22 @@ export function ExpenseForm() {
                 <Label htmlFor="title">Expense Title</Label>
                 <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g., Catering for Annual Dinner" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="amount">Amount (₹)</Label>
-                  <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g., 50000" />
+                  <Label htmlFor="date">Date</Label>
+                  <Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="vendor">Vendor</Label>
-                  <Input id="vendor" value={vendor} onChange={(e) => setVendor(e.target.value)} placeholder="e.g., ABC Caterers" />
+                 <div className="grid gap-2">
+                    <Label htmlFor="amount">Amount (INR)</Label>
+                    <Input id="amount" type="number" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g., 50000" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="budget">Budget</Label>
-                  <Select onValueChange={setBudgetId} value={budgetId}>
-                    <SelectTrigger id="budget">
-                      <SelectValue placeholder="Select a budget" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {budgets.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>{b.title}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="vendor">Vendor</Label>
+                  <Input id="vendor" value={vendor} onChange={(e) => setVendor(e.target.value)} placeholder="e.g., ABC Caterers" />
                 </div>
-                 <div className="grid gap-2">
+                <div className="grid gap-2">
                   <Label htmlFor="category">Category</Label>
                   <Select onValueChange={setCategory} value={category}>
                     <SelectTrigger id="category">
@@ -155,6 +173,19 @@ export function ExpenseForm() {
                   </Select>
                 </div>
               </div>
+              <div className="grid gap-2">
+                  <Label htmlFor="budget">Budget</Label>
+                  <Select onValueChange={setBudgetId} value={budgetId}>
+                    <SelectTrigger id="budget">
+                      <SelectValue placeholder="Select a budget" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {budgets.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>{b.title}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
                <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
@@ -183,7 +214,7 @@ export function ExpenseForm() {
               <Input id="receipt" type="file" onChange={handleFileChange} accept="image/*,application/pdf" />
               <div className="mt-2 flex h-[250px] items-center justify-center rounded-lg border border-dashed">
                 {receiptPreview ? (
-                  <img src={receiptPreview} alt="Receipt Preview" className="h-full w-full object-contain rounded-lg" />
+                  <Image src={receiptPreview} alt="Receipt Preview" width={200} height={250} className="h-full w-full object-contain rounded-lg" />
                 ) : (
                   <div className="text-center text-sm text-muted-foreground">
                     <p>Preview will appear here.</p>
@@ -196,7 +227,7 @@ export function ExpenseForm() {
             <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Submit Expense
+              {expense ? 'Save Changes' : 'Submit Expense'}
             </Button>
           </div>
         </form>

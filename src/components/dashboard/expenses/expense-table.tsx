@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -16,24 +17,35 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
+  DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ListFilter, PlusCircle, Search } from 'lucide-react';
+import { MoreHorizontal, PlusCircle, Search } from 'lucide-react';
 import { useClarity } from '@/context/clarity-provider';
 import { formatCurrency } from '@/lib/utils';
-import { Expense } from '@/lib/types';
+import type { Expense } from '@/lib/types';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from '@/hooks/use-toast';
 
 export function ExpenseTable() {
-  const { expenses, getBudgetById, currentUser, currency, exchangeRate } = useClarity();
+  const { expenses, getBudgetById, currentUser, currency, exchangeRate, deleteExpense } = useClarity();
   const router = useRouter();
+  const { toast } = useToast();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [deleteConfirmation, setDeleteConfirmation] = useState<string | null>(null);
 
   const filteredExpenses = useMemo(() => {
     return expenses
@@ -67,12 +79,19 @@ export function ExpenseTable() {
     }
   };
 
-  const handleRowClick = (expenseId: string) => {
-    router.push(`/dashboard/expenses/${expenseId}`);
+  const handleDelete = async () => {
+    if (!deleteConfirmation) return;
+    try {
+        await deleteExpense(deleteConfirmation);
+        toast({ title: 'Expense Deleted', description: 'The expense has been successfully removed.' });
+        setDeleteConfirmation(null);
+    } catch(error: any) {
+        toast({ title: 'Error Deleting', description: error.message, variant: 'destructive' });
+    }
   };
 
   return (
-    <div>
+    <>
       <div className="flex items-center gap-4 mb-4">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -113,6 +132,7 @@ export function ExpenseTable() {
               <TableHead className="text-right">Amount</TableHead>
               <TableHead className="text-center">Status</TableHead>
               <TableHead>Date</TableHead>
+              <TableHead><span className="sr-only">Actions</span></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -122,10 +142,14 @@ export function ExpenseTable() {
                 return (
                   <TableRow
                     key={expense.id}
-                    onClick={() => handleRowClick(expense.id)}
-                    className="cursor-pointer"
+                    className="group"
                   >
-                    <TableCell className="font-medium">{expense.title}</TableCell>
+                    <TableCell 
+                        className="font-medium cursor-pointer"
+                        onClick={() => router.push(`/dashboard/expenses/${expense.id}`)}                    
+                    >
+                        {expense.title}
+                    </TableCell>
                     <TableCell>{budget?.department || 'N/A'}</TableCell>
                     <TableCell>{expense.vendor}</TableCell>
                     <TableCell className="text-right">
@@ -139,12 +163,28 @@ export function ExpenseTable() {
                     <TableCell>
                       {new Date(expense.date).toLocaleDateString()}
                     </TableCell>
+                    <TableCell className="text-right">
+                       {currentUser?.role === 'Admin' && expense.status !== 'Approved' && (
+                         <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" className="h-8 w-8 p-0">
+                                <span className="sr-only">Open menu</span>
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => router.push(`/dashboard/expenses/${expense.id}/edit`)}>Edit</DropdownMenuItem>
+                              <DropdownMenuItem className="text-destructive" onClick={() => setDeleteConfirmation(expense.id)}>Delete</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                       )}
+                    </TableCell>
                   </TableRow>
                 );
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   No expenses found.
                 </TableCell>
               </TableRow>
@@ -152,6 +192,21 @@ export function ExpenseTable() {
           </TableBody>
         </Table>
       </div>
-    </div>
+
+       <AlertDialog open={!!deleteConfirmation} onOpenChange={(open) => !open && setDeleteConfirmation(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this expense?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the expense and its associated data from our servers.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

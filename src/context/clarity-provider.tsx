@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { Budget, Expense, Role, User, SignupData, Institution, PaymentMode, Payment, AuditLog, Feedback, Currency } from '@/lib/types';
+import type { Budget, Expense, Role, User, SignupData, Institution, PaymentMode, Payment, AuditLog, Feedback, Currency, ExpenseUpdate } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { DEPARTMENTS, EXPENSE_CATEGORIES, PAYMENT_MODES } from '@/lib/types';
 import { auth, db, storage } from '@/lib/firebase';
@@ -23,8 +23,9 @@ import {
     getDocs,
     Timestamp,
     updateDoc,
+    deleteDoc,
 } from 'firebase/firestore';
-import { ref, uploadString, getDownloadURL } from 'firebase/storage';
+import { ref, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { fetchAllPublicData } from '@/lib/public-data';
 
@@ -41,6 +42,8 @@ interface ClarityContextType {
   addBudget: (budget: Omit<Budget, 'id'| 'institutionId'>) => void;
   expenses: Expense[];
   addExpense: (expense: Omit<Expense, 'id' | 'submittedBy' | 'auditTrail' | 'status' | 'institutionId'>) => Promise<void>;
+  updateExpense: (expenseId: string, expenseData: ExpenseUpdate, comment?: string) => Promise<void>;
+  deleteExpense: (expenseId: string) => Promise<void>;
   updateExpenseStatus: (expenseId: string, status: 'Approved' | 'Rejected', comments: string) => void;
   payments: Payment[];
   addPayment: (payment: Omit<Payment, 'id'|'institutionId'>) => void;
@@ -255,6 +258,63 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
 
     uploadAndUpdateReceipt();
   };
+
+  const updateExpense = async (expenseId: string, expenseData: ExpenseUpdate, comment: string = "Expense details updated.") => {
+    if (!currentUser || currentUser.role !== 'Admin') throw new Error("Permission denied.");
+
+    const expenseRef = doc(db, 'expenses', expenseId);
+    const expenseSnap = await getDoc(expenseRef);
+    if (!expenseSnap.exists()) throw new Error("Expense not found");
+
+    const existingExpense = expenseSnap.data() as Expense;
+
+    const newAuditLog: AuditLog = {
+      timestamp: new Date().toISOString(),
+      userId: currentUser.id,
+      action: 'Updated',
+      comments: comment,
+    };
+    const updatedTrail = [...(existingExpense.auditTrail || []), newAuditLog];
+
+    let receiptUrl = existingExpense.receiptUrl;
+    if (expenseData.receiptUrl && expenseData.receiptUrl !== existingExpense.receiptUrl) {
+      const storageRef = ref(storage, `receipts/${currentUser.institutionId}/${expenseId}-${Date.now()}`);
+      const uploadResult = await uploadString(storageRef, expenseData.receiptUrl, 'data_url');
+      receiptUrl = await getDownloadURL(uploadResult.ref);
+    }
+    
+    const finalUpdateData = {
+        ...expenseData,
+        receiptUrl,
+        auditTrail: updatedTrail
+    };
+
+    await updateDoc(expenseRef, finalUpdateData);
+
+    setExpenses(prev =>
+        prev.map(exp =>
+            exp.id === expenseId ? { ...exp, ...finalUpdateData } as Expense : exp
+        )
+    );
+  }
+
+  const deleteExpense = async (expenseId: string) => {
+    if (!currentUser || currentUser.role !== 'Admin') throw new Error("Permission denied.");
+    const expense = expenses.find(e => e.id === expenseId);
+    if (!expense) throw new Error("Expense not found.");
+
+    await deleteDoc(doc(db, 'expenses', expenseId));
+
+    if (expense.receiptUrl && !expense.receiptUrl.includes('picsum.photos')) {
+        try {
+            const storageRef = ref(storage, expense.receiptUrl);
+            await deleteObject(storageRef);
+        } catch (error) {
+            console.error("Could not delete receipt from storage:", error);
+        }
+    }
+    setExpenses(prev => prev.filter(exp => exp.id !== expenseId));
+  }
   
   const addPayment = async (paymentData: Omit<Payment, 'id'|'institutionId'>) => {
       if (!currentUser) throw new Error("No user logged in");
@@ -325,6 +385,8 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     addBudget,
     expenses,
     addExpense,
+    updateExpense,
+    deleteExpense,
     updateExpenseStatus,
     payments,
     addPayment,

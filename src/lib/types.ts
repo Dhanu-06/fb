@@ -1,5 +1,4 @@
 
-
 export type Role = 'Admin' | 'Reviewer' | 'Public';
 export type Currency = 'INR' | 'USD';
 
@@ -48,6 +47,8 @@ export interface Payment {
 }
 
 export type ExpenseStatus = 'Submitted' | 'Approved' | 'Rejected';
+
+export type ExpenseUpdate = Partial<Omit<Expense, 'id' | 'budgetId' | 'institutionId' | 'submittedBy' | 'status' | 'auditTrail'>>;
 
 export interface Expense {
   id: string;
