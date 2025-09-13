@@ -19,10 +19,12 @@ import {
     getDoc,
     setDoc, 
     addDoc,
-    updateDoc
+    updateDoc,
+    writeBatch
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { toast } from '@/hooks/use-toast';
+import { seedData } from '@/lib/seed-data';
 
 // Context Type
 interface ClarityContextType {
@@ -37,7 +39,7 @@ interface ClarityContextType {
   budgets: Budget[];
   addBudget: (budget: Omit<Budget, 'id'| 'institutionId'>) => void;
   expenses: Expense[];
-  addExpense: (expense: Omit<Expense, 'id' | 'submittedBy' | 'auditTrail' | 'status' | 'institutionId'>) => Promise<void>;
+  addExpense: (expense: Omit<Expense, 'id' | 'submittedBy' | 'auditTrail' | 'status' | 'institutionId' | 'receiptUrl'> & { receiptFile?: File }) => Promise<void>;
   updateExpenseStatus: (expenseId: string, status: 'Approved' | 'Rejected', comments: string) => void;
   payments: Payment[];
   addPayment: (payment: Omit<Payment, 'id'|'institutionId'>) => void;
@@ -50,6 +52,7 @@ interface ClarityContextType {
   paymentModes: PaymentMode[];
   publicStats: PublicStats;
   fetchAllPublicData: () => Promise<{ institutions: Institution[], budgets: Budget[], expenses: Expense[] }>;
+  seedDatabase: () => Promise<void>;
 }
 
 const ClarityContext = createContext<ClarityContextType | undefined>(undefined);
@@ -72,13 +75,13 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
                 const userDocRef = doc(db, "users", firebaseUser.uid);
                 const userDocSnap = await getDoc(userDocRef);
                 if (userDocSnap.exists()) {
-                    const userData = userDocSnap.data() as User;
+                    const userData = { ...userDocSnap.data(), id: userDocSnap.id } as User;
                     setCurrentUser(userData);
                     await fetchDataForUser(userData);
                 } else {
-                    // This case can happen if the user record in Auth exists but not in Firestore.
                     console.error("User document not found in Firestore.");
                     setCurrentUser(null);
+                    await firebaseSignOut(auth);
                 }
             } catch (error) {
                 console.error("Error fetching user data:", error);
@@ -86,7 +89,6 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
             }
         } else {
             setCurrentUser(null);
-            // Clear all data when user logs out
             setInstitutions([]);
             setBudgets([]);
             setExpenses([]);
@@ -110,22 +112,20 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     }
 
     try {
-        const collectionsToFetch = ['institutions', 'budgets', 'expenses', 'payments', 'users'];
+        const institutionQuery = query(collection(db, 'institutions'), where('id', '==', user.institutionId));
+        const instSnap = await getDocs(institutionQuery);
+        const fetchedInstitutions = instSnap.docs.map(d => ({ ...d.data(), id: d.id }) as Institution);
+        setInstitutions(fetchedInstitutions);
+
+        const collectionsToFetch = ['budgets', 'expenses', 'payments', 'users'];
         const setters:any = {
-            institutions: setInstitutions,
             budgets: setBudgets,
             expenses: setExpenses,
             payments: setPayments,
             users: setUsers,
         };
 
-        const institutionQuery = query(collection(db, 'institutions'), where('id', '==', user.institutionId));
-        const instSnap = await getDocs(institutionQuery);
-        const fetchedInstitutions = instSnap.docs.map(d => ({ ...d.data(), id: d.id }) as Institution);
-        setInstitutions(fetchedInstitutions);
-
-
-        for (const coll of ['budgets', 'expenses', 'payments', 'users']) {
+        for (const coll of collectionsToFetch) {
             const q = query(collection(db, coll), where('institutionId', '==', user.institutionId));
             const snapshot = await getDocs(q);
             const data = snapshot.docs.map(d => ({ ...d.data(), id: d.id }));
@@ -145,7 +145,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     const userDocSnap = await getDoc(userDocRef);
 
     if (userDocSnap.exists()) {
-        const userData = userDocSnap.data() as User;
+        const userData = { ...userDocSnap.data(), id: userDocSnap.id } as User;
         setCurrentUser(userData);
         await fetchDataForUser(userData);
         return userData;
@@ -161,15 +161,14 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
 
   const signup = async (data: SignupData): Promise<User> => {
     const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password || '');
-    const newUser: User = {
-        id: userCredential.user.uid,
+    const newUser: Omit<User, 'id'> = {
         name: data.name,
         email: data.email,
         role: data.role,
         institutionId: data.institutionId,
     };
     await setDoc(doc(db, "users", userCredential.user.uid), newUser);
-    return newUser;
+    return { ...newUser, id: userCredential.user.uid };
   };
   
   const getInstitutionById = (id: string) => institutions.find(i => i.id === id);
@@ -181,7 +180,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
       institutionId: currentUser.institutionId,
     };
     const docRef = await addDoc(collection(db, 'budgets'), newBudgetData);
-    setBudgets(prev => [...prev, { ...newBudgetData, id: docRef.id }]);
+    setBudgets(prev => [...prev, { ...newBudgetData, id: docRef.id } as Budget]);
   };
   
   const addExpense = async (expenseData: Omit<Expense, 'id' | 'submittedBy' | 'auditTrail' | 'status' | 'institutionId' | 'receiptUrl'> & { receiptFile?: File }) => {
@@ -191,14 +190,13 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     if (expenseData.receiptFile) {
         const storageRef = ref(storage, `receipts/${currentUser.institutionId}/${Date.now()}-${expenseData.receiptFile.name}`);
         
-        // Convert File to data URL for upload
         const reader = new FileReader();
         receiptUrl = await new Promise((resolve, reject) => {
             reader.onload = async (event) => {
                 try {
                     const dataUrl = event.target?.result as string;
-                    await uploadString(storageRef, dataUrl, 'data_url');
-                    const downloadUrl = await getDownloadURL(storageRef);
+                    const uploadTask = await uploadString(storageRef, dataUrl, 'data_url');
+                    const downloadUrl = await getDownloadURL(uploadTask.ref);
                     resolve(downloadUrl);
                 } catch (error) {
                     reject(error);
@@ -221,6 +219,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
           timestamp: new Date().toISOString(),
           userId: currentUser.id,
           action: 'Created',
+          comments: 'Expense submitted',
         },
       ],
     };
@@ -268,6 +267,45 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
         );
     }
   };
+
+  const seedDatabase = async () => {
+    if (!currentUser || currentUser.role !== 'Admin') {
+        throw new Error("You don't have permission to perform this action.");
+    }
+    const { sampleInstitution, sampleBudgets, sampleReviewer } = seedData;
+    const institutionId = currentUser.institutionId;
+
+    const batch = writeBatch(db);
+
+    // 1. Update current institution
+    const instRef = doc(db, 'institutions', institutionId);
+    batch.update(instRef, { name: sampleInstitution.name });
+
+    // 2. Add sample budgets
+    sampleBudgets.forEach(budget => {
+        const budgetRef = doc(collection(db, 'budgets'));
+        batch.set(budgetRef, { ...budget, institutionId });
+    });
+
+    // 3. Add sample reviewer user
+    // In a real app, you'd want a more secure way to handle user creation and passwords
+    const reviewerEmail = `reviewer-${institutionId.slice(0,6)}@clarity.com`;
+    const reviewerExistsQuery = query(collection(db, 'users'), where('email', '==', reviewerEmail));
+    const existingReviewerSnap = await getDocs(reviewerExistsQuery);
+    
+    if (existingReviewerSnap.empty) {
+      // This is a simplified signup for seeding, it doesn't use firebase auth to create a user
+      // so this user won't be able to log in. This is for display purposes.
+       const reviewerRef = doc(collection(db, 'users'));
+       batch.set(reviewerRef, { ...sampleReviewer, email: reviewerEmail, institutionId });
+    }
+
+
+    await batch.commit();
+
+    // Refetch all data to update the UI
+    await fetchDataForUser(currentUser);
+  }
 
   const getExpensesForBudget = (budgetId: string) => expenses.filter(e => e.budgetId === budgetId);
   const getBudgetById = (budgetId: string) => budgets.find(b => b.id === budgetId);
@@ -343,6 +381,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     paymentModes: PAYMENT_MODES,
     publicStats,
     fetchAllPublicData,
+    seedDatabase,
   };
 
   return <ClarityContext.Provider value={value}>{children}</ClarityContext.Provider>;
