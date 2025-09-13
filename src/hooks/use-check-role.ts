@@ -14,12 +14,7 @@ export function useCheckRole(requiredRoles: Role[]) {
     if (isLoading) return;
 
     if (!currentUser) {
-      toast({
-        title: 'Authentication Required',
-        description: 'Please log in to access this page.',
-        variant: 'destructive',
-      });
-      router.replace('/login');
+      // This is handled by the main dashboard layout, so we don't need to redirect here
       return;
     }
 

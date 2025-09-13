@@ -31,12 +31,6 @@ export function MainSidebar() {
       label: 'Overview',
       roles: ['Admin', 'Reviewer'],
     },
-     {
-      href: '/dashboard',
-      icon: Eye,
-      label: 'Public View',
-      roles: ['Public'],
-    },
     {
       href: '/dashboard/payments',
       icon: IndianRupee,
@@ -47,12 +41,18 @@ export function MainSidebar() {
       href: '/dashboard/budgets',
       icon: Wallet,
       label: 'Budgets',
-      roles: ['Admin'],
+      roles: ['Admin', 'Reviewer'],
     },
     {
       href: '/dashboard/expenses',
       icon: Receipt,
       label: 'Expenses',
+      roles: ['Admin', 'Reviewer'],
+    },
+     {
+      href: '/public',
+      icon: Eye,
+      label: 'Public View',
       roles: ['Admin', 'Reviewer'],
     },
   ];

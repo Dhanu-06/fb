@@ -4,7 +4,7 @@ import { BudgetList } from "@/components/dashboard/budgets/budget-list";
 import { useCheckRole } from "@/hooks/use-check-role";
 
 export default function BudgetsPage() {
-  useCheckRole(['Admin', 'Reviewer', 'Public']);
+  useCheckRole(['Admin', 'Reviewer']);
 
   return (
      <Card>

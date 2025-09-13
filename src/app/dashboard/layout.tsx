@@ -3,7 +3,6 @@
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { MainSidebar } from '@/components/dashboard/sidebar';
 import { Header } from '@/components/dashboard/header';
-import { useCheckRole } from '@/hooks/use-check-role';
 import { useClarity } from '@/context/clarity-provider';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -14,7 +13,6 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { currentUser, isLoading } = useClarity();
-  const { hasRequiredRole } = useCheckRole(['Admin', 'Reviewer', 'Public']);
   const router = useRouter();
 
   useEffect(() => {
@@ -23,8 +21,7 @@ export default function DashboardLayout({
     }
   }, [isLoading, currentUser, router]);
 
-  // Updated loading UI to match the public page.
-  if (isLoading || !hasRequiredRole) {
+  if (isLoading || !currentUser) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="text-center">
