@@ -15,9 +15,9 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { analyzeReceipt } from '@/app/actions';
-import { Loader2, Wand2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import type { PaymentMode } from '@/lib/types';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 export function ExpenseForm() {
   const { addExpense, budgets, expenseCategories, paymentModes } = useClarity();
@@ -35,10 +35,8 @@ export function ExpenseForm() {
   const [paymentMode, setPaymentMode] = useState<PaymentMode | ''>('');
   const [transactionReference, setTransactionReference] = useState('');
 
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<{ categories: string[], tags: string[] } | null>(null);
-
+  
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -47,49 +45,17 @@ export function ExpenseForm() {
       reader.onloadend = () => {
         const dataUri = reader.result as string;
         setReceiptPreview(dataUri);
-        handleAnalyzeReceipt(dataUri);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleAnalyzeReceipt = async (dataUri: string) => {
-    setIsAnalyzing(true);
-    setAnalysisResult(null);
-    const result = await analyzeReceipt(dataUri);
-    setIsAnalyzing(false);
-
-    if ('error' in result) {
-      toast({
-        title: 'Analysis Failed',
-        description: result.error,
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: 'Analysis Complete',
-        description: 'AI suggestions are now available.',
-      });
-      setAnalysisResult({
-        categories: result.categorySuggestions,
-        tags: result.tagSuggestions,
-      });
-      if (result.categorySuggestions.length > 0) {
-        const suggestedCategory = result.categorySuggestions[0];
-        if (expenseCategories.map(c => c.toLowerCase()).includes(suggestedCategory.toLowerCase())) {
-            const properCasingCategory = expenseCategories.find(c => c.toLowerCase() === suggestedCategory.toLowerCase());
-            if(properCasingCategory) setCategory(properCasingCategory);
-        }
-      }
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !amount || !vendor || !budgetId || !category || !receiptFile || !paymentMode) {
+    if (!title || !amount || !vendor || !budgetId || !category || !paymentMode) {
       toast({
         title: 'Missing Fields',
-        description: 'Please fill out all fields and upload a receipt.',
+        description: 'Please fill out all required fields.',
         variant: 'destructive',
       });
       return;
@@ -98,6 +64,8 @@ export function ExpenseForm() {
     setIsSubmitting(true);
 
     try {
+        const receiptUrl = receiptPreview || PlaceHolderImages.find(p => p.id === 'receipt-placeholder')?.imageUrl || '';
+
         await addExpense({
           title,
           amount: Number(amount),
@@ -105,7 +73,7 @@ export function ExpenseForm() {
           budgetId,
           category,
           date: new Date().toISOString(),
-          receiptFile: receiptFile, // Pass the file object
+          receiptUrl: receiptUrl,
           paymentMode: paymentMode,
           transactionReference,
         });
@@ -211,48 +179,16 @@ export function ExpenseForm() {
                   </div>
                 )}
               </div>
-
-               {analysisResult && (
-                <div className="grid gap-2 rounded-lg border p-4 bg-secondary/50">
-                  <Label className="flex items-center gap-2 text-sm text-foreground"><Wand2 className="h-4 w-4 text-primary" /> AI Suggestions</Label>
-                  {analysisResult.categories.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                       <p className="text-xs text-muted-foreground mr-2">Categories:</p>
-                      {analysisResult.categories.map((cat, i) => (
-                        <Button key={i} size="sm" variant="outline" className="h-6 text-xs" onClick={() => {
-                            const properCaseCat = expenseCategories.find(c => c.toLowerCase() === cat.toLowerCase())
-                            if (properCaseCat) setCategory(properCaseCat)
-                        }}>{cat}</Button>
-                      ))}
-                    </div>
-                  )}
-                   {analysisResult.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                       <p className="text-xs text-muted-foreground mr-2">Tags:</p>
-                      {analysisResult.tags.map((tag, i) => (
-                        <Badge key={i} variant="outline" className="font-normal">{tag}</Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
             </div>
             <div className="grid gap-2">
               <Label htmlFor="receipt">Receipt Upload</Label>
               <Input id="receipt" type="file" onChange={handleFileChange} accept="image/*,application/pdf" />
               <div className="mt-2 flex h-[250px] items-center justify-center rounded-lg border border-dashed">
-                {isAnalyzing ? (
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                    <span>Analyzing Receipt...</span>
-                  </div>
-                ) : receiptPreview ? (
+                {receiptPreview ? (
                   <img src={receiptPreview} alt="Receipt Preview" className="h-full w-full object-contain rounded-lg" />
                 ) : (
                   <div className="text-center text-sm text-muted-foreground">
                     <p>Preview will appear here.</p>
-                    <p>Uploading will trigger AI analysis.</p>
                   </div>
                 )}
               </div>
@@ -260,7 +196,7 @@ export function ExpenseForm() {
           </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
-            <Button type="submit" disabled={isSubmitting || isAnalyzing}>
+            <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Submit Expense
             </Button>
