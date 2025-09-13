@@ -30,7 +30,7 @@ export function SignupForm() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<Role>('Public');
+  const [role, setRole] = useState<Role>('Admin');
   const { signup } = useClarity();
   const router = useRouter();
 
@@ -104,7 +104,6 @@ export function SignupForm() {
               <SelectContent>
                 <SelectItem value="Admin">Admin</SelectItem>
                 <SelectItem value="Reviewer">Reviewer</SelectItem>
-                <SelectItem value="Public">Public</SelectItem>
               </SelectContent>
             </Select>
           </div>
