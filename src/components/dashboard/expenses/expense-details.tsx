@@ -1,3 +1,4 @@
+
 'use client';
 import { useState } from 'react';
 import { useClarity } from '@/context/clarity-provider';
@@ -25,7 +26,7 @@ import { AlertTriangle } from 'lucide-react';
 
 
 export function ExpenseDetails({ expense, onUpdate }: { expense: Expense; onUpdate: () => void }) {
-  const { getBudgetById, getUserById, currentUser, updateExpenseStatus, getExpensesForBudget } = useClarity();
+  const { getBudgetById, getUserById, currentUser, updateExpenseStatus, getExpensesForBudget, currency, exchangeRate } = useClarity();
   const { toast } = useToast();
   
   const [comments, setComments] = useState('');
@@ -72,7 +73,6 @@ export function ExpenseDetails({ expense, onUpdate }: { expense: Expense; onUpda
       return;
     }
 
-    // Anomaly Detection for Approval
     if (status === 'Approved' && budget) {
         const approvedExpenses = getExpensesForBudget(budget.id).filter(e => e.status === 'Approved');
         const spentAmount = approvedExpenses.reduce((sum, e) => sum + e.amount, 0);
@@ -114,7 +114,7 @@ export function ExpenseDetails({ expense, onUpdate }: { expense: Expense; onUpda
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground">Amount</p>
-                <p className="font-semibold text-lg">{formatCurrency(expense.amount)}</p>
+                <p className="font-semibold text-lg">{formatCurrency(expense.amount, currency, exchangeRate)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Vendor</p>

@@ -1,6 +1,7 @@
 
 
 export type Role = 'Admin' | 'Reviewer' | 'Public';
+export type Currency = 'INR' | 'USD';
 
 export interface User {
   id: string;

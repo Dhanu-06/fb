@@ -15,6 +15,7 @@ export function StatsCards({ budgets: budgetsProp, expenses: expensesProp }: { b
   // Use props if provided, otherwise use context
   const budgets = budgetsProp !== undefined ? budgetsProp : context.budgets;
   const expenses = expensesProp !== undefined ? expensesProp : context.expenses;
+  const { currency, exchangeRate } = context;
 
   const { totalBudget, totalSpent, remaining } = useMemo(() => {
     const totalBudget = budgets.reduce((sum, b) => sum + b.allocated, 0);
@@ -33,7 +34,7 @@ export function StatsCards({ budgets: budgetsProp, expenses: expensesProp }: { b
           <Landmark className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatCurrency(totalBudget)}</div>
+          <div className="text-2xl font-bold">{formatCurrency(totalBudget, currency, exchangeRate)}</div>
           <p className="text-xs text-muted-foreground">
             Total funds allocated across all departments.
           </p>
@@ -45,7 +46,7 @@ export function StatsCards({ budgets: budgetsProp, expenses: expensesProp }: { b
           <DollarSign className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatCurrency(totalSpent)}</div>
+          <div className="text-2xl font-bold">{formatCurrency(totalSpent, currency, exchangeRate)}</div>
           <p className="text-xs text-muted-foreground">
             Total approved expenses.
           </p>
@@ -57,7 +58,7 @@ export function StatsCards({ budgets: budgetsProp, expenses: expensesProp }: { b
           <PiggyBank className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatCurrency(remaining)}</div>
+          <div className="text-2xl font-bold">{formatCurrency(remaining, currency, exchangeRate)}</div>
            <p className="text-xs text-muted-foreground">
             Total budget minus spent funds.
           </p>

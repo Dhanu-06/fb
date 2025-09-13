@@ -11,6 +11,7 @@ import type { Budget, Expense } from '@/lib/types';
 
 export function BudgetSummaryChart({ budgets: budgetsProp, expenses: expensesProp, departments: departmentsProp }: { budgets?: Budget[], expenses?: Expense[], departments?: string[] }) {
   const context = useClarity();
+  const { currency, exchangeRate } = context;
 
   const budgets = budgetsProp !== undefined ? budgetsProp : context.budgets;
   const expenses = expensesProp !== undefined ? expensesProp : context.expenses;
@@ -49,6 +50,9 @@ export function BudgetSummaryChart({ budgets: budgetsProp, expenses: expensesPro
     )
   }
 
+  const chartCurrency = currency;
+  const chartExchangeRate = exchangeRate;
+
 
   return (
     <Card>
@@ -61,13 +65,13 @@ export function BudgetSummaryChart({ budgets: budgetsProp, expenses: expensesPro
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="name" stroke="hsl(var(--foreground))" fontSize={12} tickLine={false} axisLine={false} />
-            <YAxis stroke="hsl(var(--foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => formatCurrency(value as number)}/>
+            <YAxis stroke="hsl(var(--foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => formatCurrency(value as number, chartCurrency, chartExchangeRate)}/>
             <Tooltip
               contentStyle={{
                 backgroundColor: 'hsl(var(--background))',
                 borderColor: 'hsl(var(--border))',
               }}
-              formatter={(value) => formatCurrency(value as number)}
+              formatter={(value) => formatCurrency(value as number, chartCurrency, chartExchangeRate)}
             />
             <Legend />
             <Bar dataKey="Allocated" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />

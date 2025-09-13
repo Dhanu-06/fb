@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { Budget, Expense, Role, User, SignupData, Institution, PaymentMode, Payment, AuditLog, Feedback } from '@/lib/types';
+import type { Budget, Expense, Role, User, SignupData, Institution, PaymentMode, Payment, AuditLog, Feedback, Currency } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { DEPARTMENTS, EXPENSE_CATEGORIES, PAYMENT_MODES } from '@/lib/types';
 import { auth, db, storage } from '@/lib/firebase';
@@ -23,13 +23,11 @@ import {
     getDocs,
     Timestamp,
     updateDoc,
-    deleteDoc,
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { fetchAllPublicData } from '@/lib/public-data';
 
-// Context Type
 interface ClarityContextType {
   users: User[];
   currentUser: User | null;
@@ -60,12 +58,14 @@ interface ClarityContextType {
     expenses: Expense[];
     error: any;
     isLoading: boolean;
-  }
+  };
+  currency: Currency;
+  setCurrency: (currency: Currency) => void;
+  exchangeRate: number;
 }
 
 const ClarityContext = createContext<ClarityContextType | undefined>(undefined);
 
-// Provider Component
 export const ClarityProvider = ({ children }: { children: ReactNode }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -75,6 +75,8 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [currency, setCurrency] = useState<Currency>('INR');
+  const [exchangeRate] = useState(83); // Fixed rate
 
   const [publicData, setPublicData] = useState<{institutions: Institution[], budgets: Budget[], expenses: Expense[], error: any, isLoading: boolean}>({
     institutions: [],
@@ -134,7 +136,6 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, [fetchUserData]);
 
-  // Fetch public data separately
   useEffect(() => {
     const loadPublicData = async () => {
       try {
@@ -226,7 +227,6 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
 
     const docRef = await addDoc(collection(db, 'expenses'), newExpenseData);
     
-    // Use a temporary ID for optimistic update until we get the real one
     const tempId = `temp-${Date.now()}`;
     const optimisticExpense = { ...newExpenseData, id: tempId } as Expense;
     setExpenses(prev => [...prev, optimisticExpense]);
@@ -337,12 +337,14 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     paymentModes: PAYMENT_MODES,
     addFeedback,
     publicData,
+    currency,
+    setCurrency,
+    exchangeRate
   };
 
   return <ClarityContext.Provider value={value}>{children}</ClarityContext.Provider>;
 };
 
-// Custom Hook
 export const useClarity = () => {
   const context = useContext(ClarityContext);
   if (context === undefined) {

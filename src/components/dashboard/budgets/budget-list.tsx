@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useClarity } from "@/context/clarity-provider";
@@ -17,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 export function BudgetList() {
-  const { budgets, getExpensesForBudget, currentUser } = useClarity();
+  const { budgets, getExpensesForBudget, currentUser, currency, exchangeRate } = useClarity();
 
   return (
     <div>
@@ -47,8 +48,8 @@ export function BudgetList() {
                   <TableCell className="font-medium">{budget.title}</TableCell>
                   <TableCell>{budget.department}</TableCell>
                   <TableCell>
-                    <span className="font-medium">{formatCurrency(spent)}</span>
-                    <span className="text-muted-foreground"> / {formatCurrency(budget.allocated)}</span>
+                    <span className="font-medium">{formatCurrency(spent, currency, exchangeRate)}</span>
+                    <span className="text-muted-foreground"> / {formatCurrency(budget.allocated, currency, exchangeRate)}</span>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -56,7 +57,7 @@ export function BudgetList() {
                        <span className="text-xs text-muted-foreground w-12 text-right">{utilization.toFixed(0)}%</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-right font-medium">{formatCurrency(remaining)}</TableCell>
+                  <TableCell className="text-right font-medium">{formatCurrency(remaining, currency, exchangeRate)}</TableCell>
                   <TableCell className="text-center">
                     <div className="flex gap-2 justify-center">
                       <FeedbackDialog budget={budget} />
