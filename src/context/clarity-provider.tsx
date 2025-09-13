@@ -3,127 +3,28 @@
 import type { Budget, Expense, Role, User, PublicStats, SignupData, Institution, PaymentMode, Payment } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { DEPARTMENTS, EXPENSE_CATEGORIES, PAYMENT_MODES } from '@/lib/types';
+import { auth, db } from '@/lib/firebase';
+import { collection, getDocs, query, where, addDoc, updateDoc, doc, Timestamp } from "firebase/firestore";
+import { onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 
-// Mock Data
-const initialInstitutions: Institution[] = [
-    { id: 'inst-1', name: 'Global Tech University' },
-    { id: 'inst-2', name: 'City College of Arts' },
-    { id: 'inst-3', name: 'Sunshine Public School' },
-]
-
-const initialUsers: User[] = [
-  { id: 'user-1', name: 'Admin User', role: 'Admin', email: 'admin@example.com', password: 'password', institutionId: 'inst-1' },
-  { id: 'user-2', name: 'Reviewer User', role: 'Reviewer', email: 'reviewer@example.com', password: 'password', institutionId: 'inst-1' },
-  { id: 'user-3', name: 'Public User', role: 'Public', email: 'public@example.com', password: 'password', institutionId: 'inst-1' },
-  { id: 'user-4', name: 'Admin from another institution', role: 'Admin', email: 'admin2@example.com', password: 'password', institutionId: 'inst-2' },
-  { id: 'user-5', name: 'Sunshine Admin', role: 'Admin', email: 'admin3@example.com', password: 'password', institutionId: 'inst-3' },
-];
-
-const initialBudgets: Budget[] = [
-  { id: 'budget-1', title: 'Annual Fest 2025', allocated: 500000, department: 'Events', institutionId: 'inst-1' },
-  { id: 'budget-2', title: 'Library Acquisition Q3', allocated: 1000000, department: 'Library', institutionId: 'inst-1' },
-  { id: 'budget-3', title: 'Sports Equipment 2025', allocated: 750000, department: 'Sports', institutionId: 'inst-1' },
-  { id: 'budget-4', title: 'Art Exhibition Materials', allocated: 200000, department: 'Academics', institutionId: 'inst-2' },
-  { id: 'budget-5', title: 'Annual Day Celebration', allocated: 300000, department: 'Events', institutionId: 'inst-3' },
-];
-
-const initialExpenses: Expense[] = [
-  {
-    id: 'exp-1',
-    title: 'New Computer Science Books',
-    amount: 20000,
-    category: 'Supplies',
-    vendor: 'Book World Inc.',
-    date: new Date('2024-07-15T10:00:00Z').toISOString(),
-    budgetId: 'budget-2',
-    institutionId: 'inst-1',
-    submittedBy: 'user-1',
-    status: 'Approved',
-    receiptUrl: 'https://picsum.photos/seed/receipt1/400/600',
-    paymentMode: 'Bank Transfer',
-    transactionReference: 'BT-987654321',
-    auditTrail: [
-      { timestamp: new Date('2024-07-15T10:00:00Z').toISOString(), userId: 'user-1', action: 'Created' },
-      { timestamp: new Date('2024-07-16T11:30:00Z').toISOString(), userId: 'user-2', action: 'Approved', comments: 'Looks good.' },
-    ],
-  },
-  {
-    id: 'exp-2',
-    title: 'Stage and Lighting Setup',
-    amount: 150000,
-    category: 'Services',
-    vendor: 'Event Masters',
-    date: new Date('2024-08-01T14:00:00Z').toISOString(),
-    budgetId: 'budget-1',
-    institutionId: 'inst-1',
-    submittedBy: 'user-1',
-    status: 'Submitted',
-    receiptUrl: 'https://picsum.photos/seed/receipt2/400/600',
-    paymentMode: 'Cheque',
-    transactionReference: 'Cheque #123456',
-    auditTrail: [{ timestamp: new Date('2024-08-01T14:00:00Z').toISOString(), userId: 'user-1', action: 'Created' }],
-  },
-  {
-    id: 'exp-3',
-    title: 'New Football Kits',
-    amount: 85000,
-    category: 'Equipment',
-    vendor: 'Sports United',
-    date: new Date('2024-07-20T09:00:00Z').toISOString(),
-    budgetId: 'budget-3',
-    institutionId: 'inst-1',
-    submittedBy: 'user-1',
-    status: 'Rejected',
-    receiptUrl: 'https://picsum.photos/seed/receipt3/400/600',
-    paymentMode: 'UPI',
-    transactionReference: 'UPI-abc@okbank',
-    auditTrail: [
-      { timestamp: new Date('2024-07-20T09:00:00Z').toISOString(), userId: 'user-1', action: 'Created' },
-      {
-        timestamp: new Date('2024-07-21T16:00:00Z').toISOString(),
-        userId: 'user-2',
-        action: 'Rejected',
-        comments: 'Quote is too high. Please find alternative vendors.',
-      },
-    ],
-  },
-  {
-    id: 'exp-4',
-    title: 'Science Lab Chemicals',
-    amount: 45000,
-    category: 'Supplies',
-    vendor: 'Chem Supplies Co.',
-    date: new Date('2024-08-05T11:00:00Z').toISOString(),
-    budgetId: 'budget-5',
-    institutionId: 'inst-3',
-    submittedBy: 'user-5',
-    status: 'Submitted',
-    receiptUrl: 'https://picsum.photos/seed/receipt4/400/600',
-    paymentMode: 'Bank Transfer',
-    transactionReference: 'BT-1122334455',
-    auditTrail: [{ timestamp: new Date('2024-08-05T11:00:00Z').toISOString(), userId: 'user-5', action: 'Created' }],
-  },
-];
-
-const initialPayments: Payment[] = [];
 
 // Context Type
 interface ClarityContextType {
   users: User[];
   currentUser: User | null;
   isLoading: boolean;
-  login: (email: string, password: string) => User;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => void;
-  signup: (data: Omit<SignupData, 'institutionId'>) => User;
+  signup: (data: Omit<SignupData, 'institutionId'>) => Promise<User>;
   institutions: Institution[];
   getInstitutionById: (institutionId: string) => Institution | undefined;
   budgets: Budget[];
-  addBudget: (budget: Omit<Budget, 'id' | 'institutionId'>) => void;
+  addBudget: (budget: Omit<Budget, 'id' | 'institutionId'>) => Promise<void>;
   expenses: Expense[];
-  addExpense: (expense: Omit<Expense, 'id' | 'submittedBy' | 'auditTrail' | 'status' | 'institutionId'>) => void;
-  updateExpenseStatus: (expenseId: string, status: 'Approved' | 'Rejected', comments: string) => void;
+  addExpense: (expense: Omit<Expense, 'id' | 'submittedBy' | 'auditTrail' | 'status' | 'institutionId'>) => Promise<void>;
+  updateExpenseStatus: (expenseId: string, status: 'Approved' | 'Rejected', comments: string) => Promise<void>;
   payments: Payment[];
-  addPayment: (payment: Omit<Payment, 'id' | 'institutionId'>) => void;
+  addPayment: (payment: Omit<Payment, 'id' | 'institutionId'>) => Promise<void>;
   getExpensesForBudget: (budgetId: string) => Expense[];
   getBudgetById: (budgetId: string) => Budget | undefined;
   getExpenseById: (expenseId: string) => Expense | undefined;
@@ -138,71 +39,128 @@ const ClarityContext = createContext<ClarityContextType | undefined>(undefined);
 
 // Provider Component
 export const ClarityProvider = ({ children }: { children: ReactNode }) => {
-  const [users, setUsers] = useState<User[]>(initialUsers);
+  const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [institutions, setInstitutions] = useState<Institution[]>(initialInstitutions);
-  const [budgets, setBudgets] = useState<Budget[]>(initialBudgets);
-  const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
-  const [payments, setPayments] = useState<Payment[]>(initialPayments);
+  const [institutions, setInstitutions] = useState<Institution[]>([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
 
   useEffect(() => {
-    try {
-      const storedUser = localStorage.getItem('clarity-user');
-      if (storedUser) {
-        setCurrentUser(JSON.parse(storedUser));
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // Fetch user profile from Firestore
+        const userQuery = query(collection(db, 'users'), where('id', '==', firebaseUser.uid));
+        const userSnapshot = await getDocs(userQuery);
+        if (!userSnapshot.empty) {
+          const userDoc = userSnapshot.docs[0];
+          const userData = { id: userDoc.id, ...userDoc.data() } as User;
+          setCurrentUser(userData);
+          localStorage.setItem('clarity-user', JSON.stringify(userData));
+        } else {
+            setCurrentUser(null);
+            localStorage.removeItem('clarity-user');
+        }
+      } else {
+        setCurrentUser(null);
+        localStorage.removeItem('clarity-user');
       }
-    } catch (error) {
-      console.error("Failed to parse user from localStorage", error);
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
 
-  const login = (email: string, password: string): User => {
-    const user = users.find((u) => u.email === email && u.password === password);
-    if (!user) {
-      throw new Error("Invalid email or password.");
+  useEffect(() => {
+    const fetchAllData = async () => {
+      if (!currentUser) {
+        setBudgets([]);
+        setExpenses([]);
+        setPayments([]);
+        setInstitutions([]);
+        setUsers([]);
+        return;
+      };
+
+      setIsLoading(true);
+
+      const instId = currentUser.institutionId;
+
+      // Fetch institutions, users, budgets, expenses, payments
+      const institutionsQuery = query(collection(db, 'institutions'), where('id', '==', instId));
+      const usersQuery = query(collection(db, 'users'), where('institutionId', '==', instId));
+      const budgetsQuery = query(collection(db, 'budgets'), where('institutionId', '==', instId));
+      const expensesQuery = query(collection(db, 'expenses'), where('institutionId', '==', instId));
+      const paymentsQuery = query(collection(db, 'payments'), where('institutionId', '==', instId));
+      
+      const [instSnap, usersSnap, budgetsSnap, expensesSnap, paymentsSnap] = await Promise.all([
+        getDocs(institutionsQuery),
+        getDocs(usersQuery),
+        getDocs(budgetsQuery),
+        getDocs(expensesQuery),
+        getDocs(paymentsQuery)
+      ]);
+
+      setInstitutions(instSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Institution)));
+      setUsers(usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as User)));
+      setBudgets(budgetsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Budget)));
+      setExpenses(expensesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense)));
+      setPayments(paymentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment)));
+
+      setIsLoading(false);
     }
-    setCurrentUser(user);
-    localStorage.setItem('clarity-user', JSON.stringify(user));
-    return user;
+    fetchAllData();
+  }, [currentUser]);
+
+
+  const login = async (email: string, password: string): Promise<User> => {
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const userQuery = query(collection(db, 'users'), where('id', '==', userCredential.user.uid));
+    const userSnapshot = await getDocs(userQuery);
+    if (userSnapshot.empty) {
+        throw new Error("User profile not found in database.");
+    }
+    const userDoc = userSnapshot.docs[0];
+    const userData = { id: userDoc.id, ...userDoc.data() } as User;
+    setCurrentUser(userData);
+    localStorage.setItem('clarity-user', JSON.stringify(userData));
+    return userData;
   };
 
-  const logout = () => {
+  const logout = async () => {
+    await signOut(auth);
     setCurrentUser(null);
     localStorage.removeItem('clarity-user');
   };
 
-  const signup = (data: Omit<SignupData, 'institutionId'>): User => {
-    if (users.some(u => u.email === data.email)) {
-      throw new Error("User with this email already exists.");
-    }
-    const newUser: User = {
-      ...data,
-      id: `user-${Date.now()}`,
-      institutionId: 'inst-1', // Default institution for new signups
+  const signup = async (data: Omit<SignupData, 'institutionId'>): Promise<User> => {
+     const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password!);
+     const newUser: User = {
+        id: userCredential.user.uid,
+        name: data.name,
+        email: data.email,
+        role: data.role,
+        institutionId: 'inst-1', // Default institution for new signups
     };
-    setUsers(prev => [...prev, newUser]);
+    await addDoc(collection(db, "users"), newUser);
     return newUser;
   };
 
   const getInstitutionById = (id: string) => institutions.find(i => i.id === id);
 
-  const addBudget = (budgetData: Omit<Budget, 'id' | 'institutionId'>) => {
+  const addBudget = async (budgetData: Omit<Budget, 'id' | 'institutionId'>) => {
     if (!currentUser) throw new Error("No user logged in");
-    const newBudget: Budget = {
+    const newBudget: Omit<Budget, 'id'> = {
       ...budgetData,
-      id: `budget-${Date.now()}`,
       institutionId: currentUser.institutionId,
     };
-    setBudgets((prev) => [...prev, newBudget]);
+    await addDoc(collection(db, 'budgets'), newBudget);
   };
   
-  const addExpense = (expenseData: Omit<Expense, 'id' | 'submittedBy' | 'auditTrail' | 'status' | 'institutionId'>) => {
+  const addExpense = async (expenseData: Omit<Expense, 'id' | 'submittedBy' | 'auditTrail' | 'status' | 'institutionId'>) => {
     if (!currentUser) throw new Error("No user logged in");
-    const newExpense: Expense = {
+    const newExpense: Omit<Expense, 'id'> = {
       ...expenseData,
-      id: `exp-${Date.now()}`,
       submittedBy: currentUser.id,
       institutionId: currentUser.institutionId,
       status: 'Submitted',
@@ -214,42 +172,37 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
         },
       ],
     };
-    setExpenses((prev) => [...prev, newExpense]);
+    await addDoc(collection(db, 'expenses'), newExpense);
   };
   
-  const addPayment = (paymentData: Omit<Payment, 'id' | 'institutionId'>) => {
+  const addPayment = async (paymentData: Omit<Payment, 'id' | 'institutionId'>) => {
     if (!currentUser) throw new Error("No user logged in");
-    const newPayment: Payment = {
+    const newPayment: Omit<Payment, 'id'> = {
         ...paymentData,
-        id: `pay-${Date.now()}`,
         institutionId: currentUser.institutionId,
     };
-    setPayments((prev) => [...prev, newPayment]);
+    await addDoc(collection(db, 'payments'), newPayment);
   };
 
-  const updateExpenseStatus = (expenseId: string, status: 'Approved' | 'Rejected', comments: string) => {
+  const updateExpenseStatus = async (expenseId: string, status: 'Approved' | 'Rejected', comments: string) => {
     if (!currentUser || currentUser.role !== 'Reviewer') throw new Error("Unauthorized");
-    setExpenses((prev) =>
-      prev.map((exp) => {
-        if (exp.id === expenseId) {
-          // Ensure reviewer is from the same institution
-          if(exp.institutionId !== currentUser.institutionId) throw new Error("Unauthorized: You can only review expenses for your own institution.");
+    
+    const expenseRef = doc(db, 'expenses', expenseId);
+    const currentExpense = expenses.find(e => e.id === expenseId);
+    if (!currentExpense) throw new Error("Expense not found");
+    if(currentExpense.institutionId !== currentUser.institutionId) throw new Error("Unauthorized: You can only review expenses for your own institution.");
 
-          const newAuditLog = {
-            timestamp: new Date().toISOString(),
-            userId: currentUser.id,
-            action: status === 'Approved' ? 'Approved' : 'Rejected',
-            comments,
-          };
-          return {
-            ...exp,
-            status,
-            auditTrail: [...exp.auditTrail, newAuditLog],
-          };
-        }
-        return exp;
-      })
-    );
+    const newAuditLog = {
+        timestamp: new Date().toISOString(),
+        userId: currentUser.id,
+        action: status as 'Approved' | 'Rejected',
+        comments,
+    };
+
+    await updateDoc(expenseRef, {
+        status: status,
+        auditTrail: [...currentExpense.auditTrail, newAuditLog]
+    });
   };
 
   const getExpensesForBudget = (budgetId: string) => expenses.filter(e => e.budgetId === budgetId);
@@ -300,12 +253,12 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     signup,
     institutions,
     getInstitutionById,
-    budgets: currentUser ? budgets.filter(b => b.institutionId === currentUser.institutionId) : [],
+    budgets,
     addBudget,
-    expenses: currentUser ? expenses.filter(e => e.institutionId === currentUser.institutionId) : [],
+    expenses,
     addExpense,
     updateExpenseStatus,
-    payments: currentUser ? payments.filter(p => p.institutionId === currentUser.institutionId) : [],
+    payments,
     addPayment,
     getExpensesForBudget,
     getBudgetById,
