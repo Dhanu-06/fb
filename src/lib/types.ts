@@ -1,9 +1,6 @@
 
-import { z } from 'zod';
 
 export type Role = 'Admin' | 'Reviewer' | 'Public';
-
-export type Currency = 'INR' | 'USD';
 
 export interface User {
   id: string;
@@ -97,17 +94,6 @@ export interface PublicStats {
     totalSpent: number;
     departmentData: PublicDepartmentStat[];
 }
-
-// AI Flow Schemas - Zod schemas are now in the flow file, but we keep the types here
-export type FinancialQueryInput = {
-  query: string;
-  budgets: any[];
-  expenses: any[];
-}
-export type FinancialQueryOutput = {
-  answer: string;
-}
-
 
 export const DEPARTMENTS = ["Library", "Sports", "Food", "Maintenance", "Lab", "Events", "Transport", "IT Services", "Student Welfare", "Administration", "Hostel", "Academics", "Research & Development", "Infrastructure & Construction"];
 export const EXPENSE_CATEGORIES = ["Supplies", "Services", "Equipment", "Travel", "Utilities", "Miscellaneous"];

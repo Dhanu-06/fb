@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { Budget, Expense, Role, User, SignupData, Institution, PaymentMode, Payment, AuditLog, Feedback, Currency } from '@/lib/types';
+import type { Budget, Expense, Role, User, SignupData, Institution, PaymentMode, Payment, AuditLog, Feedback } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { DEPARTMENTS, EXPENSE_CATEGORIES, PAYMENT_MODES } from '@/lib/types';
 import { auth, db, storage } from '@/lib/firebase';
@@ -23,12 +23,11 @@ import {
     getDocs,
     Timestamp,
     updateDoc,
+    deleteDoc,
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { fetchAllPublicData } from '@/lib/public-data';
-
-const USD_INR_EXCHANGE_RATE = 83; // Hardcoded exchange rate
 
 // Context Type
 interface ClarityContextType {
@@ -62,9 +61,6 @@ interface ClarityContextType {
     error: any;
     isLoading: boolean;
   }
-  currency: Currency;
-  setCurrency: (currency: Currency) => void;
-  exchangeRate: number;
 }
 
 const ClarityContext = createContext<ClarityContextType | undefined>(undefined);
@@ -79,7 +75,6 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [currency, setCurrency] = useState<Currency>('INR');
 
   const [publicData, setPublicData] = useState<{institutions: Institution[], budgets: Budget[], expenses: Expense[], error: any, isLoading: boolean}>({
     institutions: [],
@@ -90,9 +85,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
   });
 
   const fetchUserData = useCallback(async (uid: string) => {
-    setIsLoading(true);
-    const userDocRef = doc(db, 'users', uid);
-    const userDoc = await getDoc(userDocRef);
+    const userDoc = await getDoc(doc(db, 'users', uid));
     if (userDoc.exists()) {
         const userData = userDoc.data() as Omit<User, 'id'>;
         const userWithId = { ...userData, id: uid };
@@ -100,7 +93,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
         
         const instId = userData.institutionId;
         if (instId) {
-             const [instSnap, budgetsSnap, expensesSnap, paymentsSnap, usersSnap] = await Promise.all([
+            const [instSnap, budgetsSnap, expensesSnap, paymentsSnap, usersSnap] = await Promise.all([
                 getDoc(doc(db, 'institutions', instId)),
                 getDocs(query(collection(db, 'budgets'), where('institutionId', '==', instId))),
                 getDocs(query(collection(db, 'expenses'), where('institutionId', '==', instId))),
@@ -116,29 +109,27 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
             setPayments(paymentsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Payment)));
             setUsers(usersSnap.docs.map(d => ({ id: d.id, ...d.data() } as User)));
         }
-        setIsLoading(false);
         return userWithId;
     }
-    setIsLoading(false);
     return null;
   }, []);
+
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
         setIsLoading(true);
+        setFirebaseUser(user);
         if (user) {
-            setFirebaseUser(user);
             await fetchUserData(user.uid);
         } else {
-            setFirebaseUser(null);
             setCurrentUser(null);
             setInstitutions([]);
             setBudgets([]);
             setExpenses([]);
             setPayments([]);
             setUsers([]);
-            setIsLoading(false);
         }
+        setIsLoading(false);
     });
     return () => unsubscribe();
   }, [fetchUserData]);
@@ -209,7 +200,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     const docRef = await addDoc(collection(db, 'budgets'), newBudgetData);
     setBudgets(prev => [...prev, { ...newBudgetData, id: docRef.id } as Budget]);
   };
-  
+
   const addExpense = async (expenseData: Omit<Expense, 'id' | 'submittedBy' | 'auditTrail' | 'status' | 'institutionId'>) => {
     if (!currentUser) throw new Error("No user logged in");
 
@@ -235,7 +226,9 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
 
     const docRef = await addDoc(collection(db, 'expenses'), newExpenseData);
     
-    const optimisticExpense = { ...newExpenseData, id: docRef.id, receiptUrl: placeholderReceipt } as Expense;
+    // Use a temporary ID for optimistic update until we get the real one
+    const tempId = `temp-${Date.now()}`;
+    const optimisticExpense = { ...newExpenseData, id: tempId } as Expense;
     setExpenses(prev => [...prev, optimisticExpense]);
 
     const uploadAndUpdateReceipt = async () => {
@@ -251,13 +244,12 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
 
             setExpenses(prev => 
                 prev.map(exp => 
-                    exp.id === docRef.id ? { ...exp, receiptUrl: finalReceiptUrl } : exp
+                    exp.id === tempId ? { ...exp, id: docRef.id, receiptUrl: finalReceiptUrl } : exp
                 )
             );
         } catch (error) {
             console.error("Failed to upload receipt:", error);
-            // Revert optimistic update on failure if needed
-            setExpenses(prev => prev.filter(exp => exp.id !== docRef.id));
+            setExpenses(prev => prev.filter(exp => exp.id !== tempId));
         }
     };
 
@@ -345,9 +337,6 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     paymentModes: PAYMENT_MODES,
     addFeedback,
     publicData,
-    currency,
-    setCurrency,
-    exchangeRate: USD_INR_EXCHANGE_RATE,
   };
 
   return <ClarityContext.Provider value={value}>{children}</ClarityContext.Provider>;

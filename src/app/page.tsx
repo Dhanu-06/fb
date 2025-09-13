@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, Eye, Landmark, FileCheck } from 'lucide-react';
 import { Logo } from '@/components/logo';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { ThemeToggle } from '@/components/theme/theme-toggle';
 
 export default function Home() {
     const heroBg = PlaceHolderImages.find(p => p.id === 'public-banner');
@@ -26,6 +27,7 @@ export default function Home() {
                 Login / Signup <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
+            <ThemeToggle />
           </nav>
         </div>
       </header>

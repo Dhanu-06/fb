@@ -25,7 +25,7 @@ import { AlertTriangle } from 'lucide-react';
 
 
 export function ExpenseDetails({ expense, onUpdate }: { expense: Expense; onUpdate: () => void }) {
-  const { getBudgetById, getUserById, currentUser, updateExpenseStatus, getExpensesForBudget, currency, exchangeRate } = useClarity();
+  const { getBudgetById, getUserById, currentUser, updateExpenseStatus, getExpensesForBudget } = useClarity();
   const { toast } = useToast();
   
   const [comments, setComments] = useState('');
@@ -114,7 +114,7 @@ export function ExpenseDetails({ expense, onUpdate }: { expense: Expense; onUpda
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground">Amount</p>
-                <p className="font-semibold text-lg">{formatCurrency(expense.amount, currency, exchangeRate)}</p>
+                <p className="font-semibold text-lg">{formatCurrency(expense.amount)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Vendor</p>
@@ -187,7 +187,7 @@ export function ExpenseDetails({ expense, onUpdate }: { expense: Expense; onUpda
                 Budget Overrun Warning
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Approving this expense of <span className="font-bold">{formatCurrency(expense.amount, currency, exchangeRate)}</span> will exceed the remaining funds in the <span className="font-bold">&quot;{budget?.title}&quot;</span> budget. Are you sure you want to proceed?
+              Approving this expense of <span className="font-bold">{formatCurrency(expense.amount)}</span> will exceed the remaining funds in the <span className="font-bold">&quot;{budget?.title}&quot;</span> budget. Are you sure you want to proceed?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
