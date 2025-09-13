@@ -349,6 +349,3 @@ export const useClarity = () => {
   }
   return context;
 };
-
-    
-    
