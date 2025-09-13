@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { analyzeReceipt } from '@/app/actions';
 import { Loader2, Wand2 } from 'lucide-react';
 import type { PaymentMode } from '@/lib/types';
+import { getStorage, ref, uploadString, getDownloadURL } from "firebase/storage";
 
 export function ExpenseForm() {
   const { addExpense, budgets, expenseCategories, paymentModes } = useClarity();
@@ -29,23 +30,22 @@ export function ExpenseForm() {
   const [vendor, setVendor] = useState('');
   const [budgetId, setBudgetId] = useState('');
   const [category, setCategory] = useState('');
-  const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [receiptDataUrl, setReceiptDataUrl] = useState<string | null>(null);
   
   const [paymentMode, setPaymentMode] = useState<PaymentMode | ''>('');
   const [transactionReference, setTransactionReference] = useState('');
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<{ categories: string[], tags: string[] } | null>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setReceiptFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         const dataUri = reader.result as string;
-        setReceiptPreview(dataUri);
+        setReceiptDataUrl(dataUri);
         handleAnalyzeReceipt(dataUri);
       };
       reader.readAsDataURL(file);
@@ -83,9 +83,9 @@ export function ExpenseForm() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !amount || !vendor || !budgetId || !category || !receiptFile || !paymentMode) {
+    if (!title || !amount || !vendor || !budgetId || !category || !receiptDataUrl || !paymentMode) {
       toast({
         title: 'Missing Fields',
         description: 'Please fill out all fields and upload a receipt.',
@@ -94,24 +94,43 @@ export function ExpenseForm() {
       return;
     }
     
-    addExpense({
-      title,
-      amount: Number(amount),
-      vendor,
-      budgetId,
-      category,
-      date: new Date().toISOString(),
-      receiptUrl: receiptPreview || '',
-      paymentMode: paymentMode,
-      transactionReference,
-    });
+    setIsSubmitting(true);
+    let receiptUrl = '';
 
-    toast({
-      title: 'Expense Submitted',
-      description: `"${title}" has been submitted for review.`,
-    });
+    try {
+        // Upload receipt to Firebase Storage
+        const storage = getStorage();
+        const storageRef = ref(storage, `receipts/${Date.now()}-${Math.random().toString(36).substring(2)}`);
+        const uploadResult = await uploadString(storageRef, receiptDataUrl, 'data_url');
+        receiptUrl = await getDownloadURL(uploadResult.ref);
 
-    router.push('/dashboard/expenses');
+        await addExpense({
+          title,
+          amount: Number(amount),
+          vendor,
+          budgetId,
+          category,
+          date: new Date().toISOString(),
+          receiptUrl,
+          paymentMode: paymentMode,
+          transactionReference,
+        });
+
+        toast({
+          title: 'Expense Submitted',
+          description: `"${title}" has been submitted for review.`,
+        });
+
+        router.push('/dashboard/expenses');
+    } catch(error: any) {
+        toast({
+            title: 'Submission Failed',
+            description: error.message || "An error occurred while submitting the expense.",
+            variant: 'destructive',
+        });
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   const getTransactionReferenceLabel = () => {
@@ -234,8 +253,8 @@ export function ExpenseForm() {
                     <Loader2 className="h-8 w-8 animate-spin" />
                     <span>Analyzing Receipt...</span>
                   </div>
-                ) : receiptPreview ? (
-                  <img src={receiptPreview} alt="Receipt Preview" className="h-full w-full object-contain rounded-lg" />
+                ) : receiptDataUrl ? (
+                  <img src={receiptDataUrl} alt="Receipt Preview" className="h-full w-full object-contain rounded-lg" />
                 ) : (
                   <div className="text-center text-sm text-muted-foreground">
                     <p>Preview will appear here.</p>
@@ -246,8 +265,11 @@ export function ExpenseForm() {
             </div>
           </div>
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
-            <Button type="submit">Submit Expense</Button>
+            <Button type="button" variant="outline" onClick={() => router.back()} disabled={isSubmitting}>Cancel</Button>
+            <Button type="submit" disabled={isSubmitting || isAnalyzing}>
+              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Submit Expense
+            </Button>
           </div>
         </form>
       </CardContent>

@@ -49,6 +49,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setIsLoading(true);
       if (firebaseUser) {
         // Fetch user profile from Firestore
         const userDocRef = doc(db, 'users', firebaseUser.uid);
@@ -71,6 +72,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const fetchAllData = async () => {
       if (!currentUser) {
+        // Clear data if no user is logged in
         setBudgets([]);
         setExpenses([]);
         setPayments([]);
@@ -107,9 +109,11 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
       } catch (error) {
           console.error("Error fetching data:", error);
       } finally {
+        // This isLoading(false) was inside onAuthStateChanged, moved here to signal data loading is done.
         setIsLoading(false);
       }
     }
+
     fetchAllData();
   }, [currentUser]);
 
@@ -122,7 +126,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("User profile not found in database.");
     }
     const userData = { id: userSnapshot.id, ...userSnapshot.data() } as User;
-    setCurrentUser(userData);
+    // No need to set current user here, onAuthStateChanged will handle it.
     return userData;
   };
 
@@ -152,7 +156,8 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
       ...budgetData,
       institutionId: currentUser.institutionId,
     };
-    await addDoc(collection(db, 'budgets'), newBudget);
+    const docRef = await addDoc(collection(db, 'budgets'), newBudget);
+    setBudgets(prev => [...prev, {id: docRef.id, ...newBudget} as Budget]);
   };
   
   const addExpense = async (expenseData: Omit<Expense, 'id' | 'submittedBy' | 'auditTrail' | 'status' | 'institutionId'>) => {
@@ -170,7 +175,8 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
         },
       ],
     };
-    await addDoc(collection(db, 'expenses'), newExpense);
+    const docRef = await addDoc(collection(db, 'expenses'), newExpense);
+    setExpenses(prev => [...prev, {id: docRef.id, ...newExpense} as Expense]);
   };
   
   const addPayment = async (paymentData: Omit<Payment, 'id' | 'institutionId'>) => {
@@ -179,11 +185,12 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
         ...paymentData,
         institutionId: currentUser.institutionId,
     };
-    await addDoc(collection(db, 'payments'), newPayment);
+    const docRef = await addDoc(collection(db, 'payments'), newPayment);
+    setPayments(prev => [...prev, {id: docRef.id, ...newPayment} as Payment]);
   };
 
   const updateExpenseStatus = async (expenseId: string, status: ExpenseStatus, comments: string) => {
-    if (!currentUser || currentUser.role !== 'Reviewer') throw new Error("Unauthorized");
+    if (!currentUser || (currentUser.role !== 'Reviewer' && currentUser.role !== 'Admin')) throw new Error("Unauthorized");
     
     const expenseDocRef = doc(db, 'expenses', expenseId);
     const expenseSnapshot = await getDoc(expenseDocRef);
@@ -202,10 +209,14 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
       newAuditLog.comments = comments;
     }
 
+    const updatedAuditTrail = [...currentExpense.auditTrail, newAuditLog];
+
     await updateDoc(expenseDocRef, {
         status: status,
-        auditTrail: [...currentExpense.auditTrail, newAuditLog]
+        auditTrail: updatedAuditTrail
     });
+
+    setExpenses(prev => prev.map(exp => exp.id === expenseId ? {...exp, status, auditTrail: updatedAuditTrail} : exp));
   };
 
   const getExpensesForBudget = (budgetId: string) => expenses.filter(e => e.budgetId === budgetId);

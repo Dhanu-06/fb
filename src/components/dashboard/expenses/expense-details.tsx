@@ -31,7 +31,7 @@ export function ExpenseDetails({ expense, onUpdate }: { expense: Expense; onUpda
       return;
     }
     try {
-      updateExpenseStatus(expense.id, status, comments || 'Approved');
+      updateExpenseStatus(expense.id, status, comments || (status === 'Approved' ? 'Approved' : ''));
       toast({
         title: `Expense ${status}`,
         description: `The expense "${expense.title}" has been ${status.toLowerCase()}.`
@@ -51,7 +51,7 @@ export function ExpenseDetails({ expense, onUpdate }: { expense: Expense; onUpda
     }
   };
   
-  const canReview = currentUser?.role === 'Reviewer' && expense.status === 'Submitted';
+  const canReview = (currentUser?.role === 'Reviewer' || currentUser?.role === 'Admin') && expense.status === 'Submitted';
 
   return (
     <div className="grid md:grid-cols-3 gap-6">

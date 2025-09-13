@@ -8,20 +8,17 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function ExpenseDetailPage({ params }: { params: { id: string } }) {
-  const { getExpenseById } = useClarity();
+  const { getExpenseById, expenses } = useClarity();
   const router = useRouter();
 
-  // Use state to manage the expense data, allowing for updates
   const [expense, setExpense] = useState<Expense | undefined>(() => getExpenseById(params.id));
   
   useEffect(() => {
-    // This effect ensures that if the context updates, the component re-evaluates the expense
     const currentExpense = getExpenseById(params.id);
     setExpense(currentExpense);
-  }, [params.id, getExpenseById]);
+  }, [params.id, getExpenseById, expenses]);
 
   const handleUpdate = () => {
-    // Re-fetch the expense from context to get the latest state
     const updatedExpense = getExpenseById(params.id);
     setExpense(updatedExpense);
   };
