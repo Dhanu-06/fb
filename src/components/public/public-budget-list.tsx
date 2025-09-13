@@ -1,7 +1,8 @@
-
 'use client';
-import type { Budget, Expense } from "@/lib/types";
+
+import { useMemo } from 'react';
 import { formatCurrency } from "@/lib/utils";
+import type { Budget, Expense } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -11,17 +12,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { FeedbackDialog } from "../dashboard/budgets/feedback-dialog";
 
-export function PublicBudgetList({ budgets, expenses }: { budgets: Budget[], expenses: Expense[] }) {
+export function PublicBudgetList({ budgets, expenses }: { budgets: Budget[]; expenses: Expense[] }) {
     
+  const getExpensesForBudget = (budgetId: string) => expenses.filter(e => e.budgetId === budgetId && e.status === 'Approved');
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Budget Allocation Details</CardTitle>
+        <CardTitle>Budget Overview</CardTitle>
         <CardDescription>
-          A detailed breakdown of all departmental budgets. Use the feedback button to share your thoughts.
+          Detailed breakdown of all budgets, allocations, and spending.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -33,12 +36,12 @@ export function PublicBudgetList({ budgets, expenses }: { budgets: Budget[], exp
               <TableHead>Spent / Allocated</TableHead>
               <TableHead className="w-[15%] text-center">Utilization</TableHead>
               <TableHead className="text-right">Remaining</TableHead>
-              <TableHead className="w-[10%] text-center">Feedback</TableHead>
+              <TableHead className="w-[10%] text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {budgets.map((budget) => {
-              const budgetExpenses = expenses.filter(e => e.budgetId === budget.id && e.status === 'Approved');
+              const budgetExpenses = getExpensesForBudget(budget.id);
               const spent = budgetExpenses.reduce((sum, e) => sum + e.amount, 0);
               const remaining = budget.allocated - spent;
               const utilization = budget.allocated > 0 ? (spent / budget.allocated) * 100 : 0;
@@ -58,7 +61,7 @@ export function PublicBudgetList({ budgets, expenses }: { budgets: Budget[], exp
                     </div>
                   </TableCell>
                   <TableCell className="text-right font-medium">{formatCurrency(remaining)}</TableCell>
-                  <TableCell className="text-center">
+                   <TableCell className="text-center">
                     <FeedbackDialog budget={budget} />
                   </TableCell>
                 </TableRow>

@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { Budget, Expense, Role, User, PublicStats, SignupData, Institution, PaymentMode, Payment, AuditLog, Feedback } from '@/lib/types';
+import type { Budget, Expense, Role, User, SignupData, Institution, PaymentMode, Payment, AuditLog, Feedback } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { DEPARTMENTS, EXPENSE_CATEGORIES, PAYMENT_MODES } from '@/lib/types';
 import { auth, db, storage } from '@/lib/firebase';
@@ -23,7 +23,6 @@ import {
     getDocs,
     Timestamp,
     updateDoc,
-    writeBatch
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -52,8 +51,6 @@ interface ClarityContextType {
   departments: string[];
   expenseCategories: string[];
   paymentModes: PaymentMode[];
-  publicStats: PublicStats;
-  fetchAllPublicData: () => Promise<{ institutions: Institution[], budgets: Budget[], expenses: Expense[] }>;
   addFeedback: (feedback: Omit<Feedback, 'id' | 'createdAt'>) => void;
 }
 
@@ -201,6 +198,8 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
 
     const docRef = await addDoc(collection(db, 'expenses'), newExpenseData);
     const newExpense = { ...newExpenseData, id: docRef.id } as Expense;
+    
+    // Optimistically update the UI
     setExpenses(prev => [...prev, newExpense]);
 
     // Asynchronously upload the image and update the expense
@@ -282,24 +281,6 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
   const getExpenseById = (expenseId: string) => expenses.find(e => e.id === expenseId);
   const getUserById = (userId: string) => users.find(u => u.id === userId);
 
-  const publicStats: PublicStats = {
-    totalAllocated: 0,
-    totalSpent: 0,
-    departmentData: []
-  }
-
-  const fetchAllPublicData = async (): Promise<{ institutions: Institution[], budgets: Budget[], expenses: Expense[] }> => {
-    const [instSnap, budgetsSnap, expensesSnap] = await Promise.all([
-        getDocs(collection(db, 'institutions')),
-        getDocs(collection(db, 'budgets')),
-        getDocs(query(collection(db, 'expenses'), where('status', '==', 'Approved')))
-    ]);
-    return {
-        institutions: instSnap.docs.map(d => ({id: d.id, ...d.data()}) as Institution),
-        budgets: budgetsSnap.docs.map(d => ({id: d.id, ...d.data()}) as Budget),
-        expenses: expensesSnap.docs.map(d => ({id: d.id, ...d.data()}) as Expense),
-    }
-  };
 
   const value = {
     users,
@@ -324,8 +305,6 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     departments: DEPARTMENTS,
     expenseCategories: EXPENSE_CATEGORIES,
     paymentModes: PAYMENT_MODES,
-    publicStats,
-    fetchAllPublicData,
     addFeedback,
   };
 
@@ -340,5 +319,3 @@ export const useClarity = () => {
   }
   return context;
 };
-
-    

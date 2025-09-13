@@ -12,9 +12,9 @@ import type { Budget, Expense } from '@/lib/types';
 export function BudgetSummaryChart({ budgets: budgetsProp, expenses: expensesProp, departments: departmentsProp }: { budgets?: Budget[], expenses?: Expense[], departments?: string[] }) {
   const context = useClarity();
 
-  const budgets = budgetsProp || context.budgets;
-  const expenses = expensesProp || context.expenses;
-  const departments = departmentsProp || context.departments;
+  const budgets = budgetsProp !== undefined ? budgetsProp : context.budgets;
+  const expenses = expensesProp !== undefined ? expensesProp : context.expenses;
+  const departments = departmentsProp !== undefined ? departmentsProp : context.departments;
 
   const chartData = useMemo(() => {
     return departments.map(department => {
@@ -78,4 +78,3 @@ export function BudgetSummaryChart({ budgets: budgetsProp, expenses: expensesPro
     </Card>
   );
 }
-

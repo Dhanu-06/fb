@@ -13,8 +13,8 @@ export function StatsCards({ budgets: budgetsProp, expenses: expensesProp }: { b
   const context = useClarity();
   
   // Use props if provided, otherwise use context
-  const budgets = budgetsProp || context.budgets;
-  const expenses = expensesProp || context.expenses;
+  const budgets = budgetsProp !== undefined ? budgetsProp : context.budgets;
+  const expenses = expensesProp !== undefined ? expensesProp : context.expenses;
 
   const { totalBudget, totalSpent, remaining } = useMemo(() => {
     const totalBudget = budgets.reduce((sum, b) => sum + b.allocated, 0);
@@ -66,4 +66,3 @@ export function StatsCards({ budgets: budgetsProp, expenses: expensesProp }: { b
     </div>
   );
 }
-
