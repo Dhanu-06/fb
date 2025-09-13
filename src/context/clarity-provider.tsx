@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Budget, Expense, Role, User, PublicStats, SignupData, Institution, PaymentMode, Payment, AuditLog } from '@/lib/types';
@@ -22,6 +23,7 @@ import {
     getDocs,
     Timestamp,
     writeBatch, 
+    updateDoc,
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -177,14 +179,9 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
   const addExpense = async (expenseData: Omit<Expense, 'id' | 'submittedBy' | 'auditTrail' | 'status' | 'institutionId'>) => {
     if (!currentUser) throw new Error("No user logged in");
 
-    let finalReceiptUrl = expenseData.receiptUrl || PlaceHolderImages.find(p => p.id === 'receipt-placeholder')?.imageUrl || '';
+    const receiptDataUri = expenseData.receiptUrl;
+    const placeholderReceipt = PlaceHolderImages.find(p => p.id === 'receipt-placeholder')?.imageUrl || '';
 
-    if (expenseData.receiptUrl && expenseData.receiptUrl.startsWith('data:')) {
-        const storageRef = ref(storage, `receipts/${currentUser.institutionId}/${Date.now()}`);
-        const uploadResult = await uploadString(storageRef, expenseData.receiptUrl, 'data_url');
-        finalReceiptUrl = await getDownloadURL(uploadResult.ref);
-    }
-    
     const newExpenseData: Omit<Expense, 'id'> = {
       institutionId: currentUser.institutionId,
       submittedBy: currentUser.id,
@@ -198,12 +195,38 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
         },
       ],
       ...expenseData,
-      receiptUrl: finalReceiptUrl,
+      receiptUrl: '', // Initially set to empty
       date: Timestamp.fromDate(new Date(expenseData.date)).toDate().toISOString(),
     };
 
     const docRef = await addDoc(collection(db, 'expenses'), newExpenseData);
-    setExpenses(prev => [...prev, { ...newExpenseData, id: docRef.id } as Expense]);
+    const newExpense = { ...newExpenseData, id: docRef.id } as Expense;
+    setExpenses(prev => [...prev, newExpense]);
+
+    // Asynchronously upload the image and update the expense
+    const uploadAndUpdateReceipt = async () => {
+        let finalReceiptUrl = placeholderReceipt;
+        try {
+            if (receiptDataUri && receiptDataUri.startsWith('data:')) {
+                const storageRef = ref(storage, `receipts/${currentUser.institutionId}/${docRef.id}-${Date.now()}`);
+                const uploadResult = await uploadString(storageRef, receiptDataUri, 'data_url');
+                finalReceiptUrl = await getDownloadURL(uploadResult.ref);
+            }
+            
+            await updateDoc(docRef, { receiptUrl: finalReceiptUrl });
+
+            setExpenses(prev => 
+                prev.map(exp => 
+                    exp.id === docRef.id ? { ...exp, receiptUrl: finalReceiptUrl } : exp
+                )
+            );
+        } catch (error) {
+            console.error("Failed to upload receipt:", error);
+            // Optionally update the expense with an error state for the receipt
+        }
+    };
+
+    uploadAndUpdateReceipt();
   };
   
   const addPayment = async (paymentData: Omit<Payment, 'id'|'institutionId'>) => {
