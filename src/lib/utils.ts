@@ -9,10 +9,14 @@ export function cn(...inputs: ClassValue[]) {
 export function formatCurrency(amount: number, currency: Currency = 'INR', exchangeRate: number = 1) {
   const convertedAmount = currency === 'USD' ? amount / exchangeRate : amount;
   
-  return new Intl.NumberFormat(currency === 'INR' ? 'en-IN' : 'en-US', {
-    style: 'currency',
-    currency: currency,
+  const formattedAmount = new Intl.NumberFormat(currency === 'INR' ? 'en-IN' : 'en-US', {
+    style: 'decimal',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(convertedAmount);
+  }).format(Math.round(convertedAmount));
+
+  if (currency === 'USD') {
+    return `$${formattedAmount}`;
+  }
+  return `₹${formattedAmount}`;
 }
