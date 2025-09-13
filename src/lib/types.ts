@@ -1,4 +1,5 @@
 
+
 export type Role = 'Admin' | 'Reviewer' | 'Public';
 
 export interface User {
@@ -7,6 +8,7 @@ export interface User {
   role: Role;
   email: string;
   password?: string;
+  institutionId: string;
 }
 
 export interface SignupData {
@@ -16,14 +18,21 @@ export interface SignupData {
   role: Role;
 }
 
+export interface Institution {
+    id: string;
+    name: string;
+}
+
 export interface Budget {
   id: string;
   title: string;
   allocated: number;
   department: string;
-  // Versioning can be handled by storing previous states
+  institutionId: string;
   history?: Partial<Budget>[];
 }
+
+export type PaymentMode = 'Cash' | 'UPI' | 'Bank Transfer' | 'Cheque' | 'Card' | 'In-Kind';
 
 export interface Expense {
   id: string;
@@ -34,8 +43,11 @@ export interface Expense {
   date: string; // ISO string
   receiptUrl?: string;
   budgetId: string;
+  institutionId: string;
   submittedBy: string; // User ID
   status: 'Submitted' | 'Approved' | 'Rejected';
+  paymentMode: PaymentMode;
+  transactionReference?: string;
   auditTrail: AuditLog[];
 }
 
@@ -59,5 +71,7 @@ export interface PublicStats {
     departmentData: PublicDepartmentStat[];
 }
 
-export const DEPARTMENTS = ["Library", "Sports", "Food", "Maintenance", "Lab", "Events", "Transport", "IT Services", "Student Welfare", "Administration"];
+export const DEPARTMENTS = ["Library", "Sports", "Food", "Maintenance", "Lab", "Events", "Transport", "IT Services", "Student Welfare", "Administration", "Hostel", "Academics", "Research & Development"];
 export const EXPENSE_CATEGORIES = ["Supplies", "Services", "Equipment", "Travel", "Utilities", "Miscellaneous"];
+export const PAYMENT_MODES: PaymentMode[] = ['Cash', 'UPI', 'Bank Transfer', 'Cheque', 'Card', 'In-Kind'];
+

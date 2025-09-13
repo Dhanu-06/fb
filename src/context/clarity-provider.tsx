@@ -1,20 +1,27 @@
 'use client';
 
-import type { Budget, Expense, Role, User, PublicStats, SignupData } from '@/lib/types';
+import type { Budget, Expense, Role, User, PublicStats, SignupData, Institution, PaymentMode } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
-import { DEPARTMENTS, EXPENSE_CATEGORIES } from '@/lib/types';
+import { DEPARTMENTS, EXPENSE_CATEGORIES, PAYMENT_MODES } from '@/lib/types';
 
 // Mock Data
+const initialInstitutions: Institution[] = [
+    { id: 'inst-1', name: 'Global Tech University' },
+    { id: 'inst-2', name: 'City College of Arts' },
+]
+
 const initialUsers: User[] = [
-  { id: 'user-1', name: 'Admin User', role: 'Admin', email: 'admin@example.com', password: 'password' },
-  { id: 'user-2', name: 'Reviewer User', role: 'Reviewer', email: 'reviewer@example.com', password: 'password' },
-  { id: 'user-3', name: 'Public User', role: 'Public', email: 'public@example.com', password: 'password' },
+  { id: 'user-1', name: 'Admin User', role: 'Admin', email: 'admin@example.com', password: 'password', institutionId: 'inst-1' },
+  { id: 'user-2', name: 'Reviewer User', role: 'Reviewer', email: 'reviewer@example.com', password: 'password', institutionId: 'inst-1' },
+  { id: 'user-3', name: 'Public User', role: 'Public', email: 'public@example.com', password: 'password', institutionId: 'inst-1' },
+  { id: 'user-4', name: 'Admin from another institution', role: 'Admin', email: 'admin2@example.com', password: 'password', institutionId: 'inst-2' },
 ];
 
 const initialBudgets: Budget[] = [
-  { id: 'budget-1', title: 'Annual Fest 2025', allocated: 500000, department: 'Events' },
-  { id: 'budget-2', title: 'Library Acquisition Q3', allocated: 1000000, department: 'Library' },
-  { id: 'budget-3', title: 'Sports Equipment 2025', allocated: 750000, department: 'Sports' },
+  { id: 'budget-1', title: 'Annual Fest 2025', allocated: 500000, department: 'Events', institutionId: 'inst-1' },
+  { id: 'budget-2', title: 'Library Acquisition Q3', allocated: 1000000, department: 'Library', institutionId: 'inst-1' },
+  { id: 'budget-3', title: 'Sports Equipment 2025', allocated: 750000, department: 'Sports', institutionId: 'inst-1' },
+  { id: 'budget-4', title: 'Art Exhibition Materials', allocated: 200000, department: 'Academics', institutionId: 'inst-2' },
 ];
 
 const initialExpenses: Expense[] = [
@@ -26,9 +33,12 @@ const initialExpenses: Expense[] = [
     vendor: 'Book World Inc.',
     date: new Date('2024-07-15T10:00:00Z').toISOString(),
     budgetId: 'budget-2',
+    institutionId: 'inst-1',
     submittedBy: 'user-1',
     status: 'Approved',
     receiptUrl: 'https://picsum.photos/seed/receipt1/400/600',
+    paymentMode: 'Bank Transfer',
+    transactionReference: 'BT-987654321',
     auditTrail: [
       { timestamp: new Date('2024-07-15T10:00:00Z').toISOString(), userId: 'user-1', action: 'Created' },
       { timestamp: new Date('2024-07-16T11:30:00Z').toISOString(), userId: 'user-2', action: 'Approved', comments: 'Looks good.' },
@@ -42,9 +52,12 @@ const initialExpenses: Expense[] = [
     vendor: 'Event Masters',
     date: new Date('2024-08-01T14:00:00Z').toISOString(),
     budgetId: 'budget-1',
+    institutionId: 'inst-1',
     submittedBy: 'user-1',
     status: 'Submitted',
     receiptUrl: 'https://picsum.photos/seed/receipt2/400/600',
+    paymentMode: 'Cheque',
+    transactionReference: 'Cheque #123456',
     auditTrail: [{ timestamp: new Date('2024-08-01T14:00:00Z').toISOString(), userId: 'user-1', action: 'Created' }],
   },
   {
@@ -55,9 +68,12 @@ const initialExpenses: Expense[] = [
     vendor: 'Sports United',
     date: new Date('2024-07-20T09:00:00Z').toISOString(),
     budgetId: 'budget-3',
+    institutionId: 'inst-1',
     submittedBy: 'user-1',
     status: 'Rejected',
     receiptUrl: 'https://picsum.photos/seed/receipt3/400/600',
+    paymentMode: 'UPI',
+    transactionReference: 'UPI-abc@okbank',
     auditTrail: [
       { timestamp: new Date('2024-07-20T09:00:00Z').toISOString(), userId: 'user-1', action: 'Created' },
       {
@@ -77,11 +93,13 @@ interface ClarityContextType {
   isLoading: boolean;
   login: (email: string, password: string) => User;
   logout: () => void;
-  signup: (data: SignupData) => User;
+  signup: (data: Omit<SignupData, 'institutionId'>) => User;
+  institutions: Institution[];
+  getInstitutionById: (institutionId: string) => Institution | undefined;
   budgets: Budget[];
-  addBudget: (budget: Omit<Budget, 'id'>) => void;
+  addBudget: (budget: Omit<Budget, 'id' | 'institutionId'>) => void;
   expenses: Expense[];
-  addExpense: (expense: Omit<Expense, 'id' | 'submittedBy' | 'auditTrail' | 'status'>) => void;
+  addExpense: (expense: Omit<Expense, 'id' | 'submittedBy' | 'auditTrail' | 'status' | 'institutionId'>) => void;
   updateExpenseStatus: (expenseId: string, status: 'Approved' | 'Rejected', comments: string) => void;
   getExpensesForBudget: (budgetId: string) => Expense[];
   getBudgetById: (budgetId: string) => Budget | undefined;
@@ -89,6 +107,7 @@ interface ClarityContextType {
   getUserById: (userId: string) => User | undefined;
   departments: string[];
   expenseCategories: string[];
+  paymentModes: PaymentMode[];
   publicStats: PublicStats;
 }
 
@@ -99,6 +118,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
   const [users, setUsers] = useState<User[]>(initialUsers);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [institutions, setInstitutions] = useState<Institution[]>(initialInstitutions);
   const [budgets, setBudgets] = useState<Budget[]>(initialBudgets);
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
 
@@ -129,32 +149,38 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('clarity-user');
   };
 
-  const signup = (data: SignupData): User => {
+  const signup = (data: Omit<SignupData, 'institutionId'>): User => {
     if (users.some(u => u.email === data.email)) {
       throw new Error("User with this email already exists.");
     }
     const newUser: User = {
       ...data,
-      id: `user-${Date.now()}`
+      id: `user-${Date.now()}`,
+      institutionId: 'inst-1', // Default institution for new signups
     };
     setUsers(prev => [...prev, newUser]);
     return newUser;
   };
 
-  const addBudget = (budgetData: Omit<Budget, 'id'>) => {
+  const getInstitutionById = (id: string) => institutions.find(i => i.id === id);
+
+  const addBudget = (budgetData: Omit<Budget, 'id' | 'institutionId'>) => {
+    if (!currentUser) throw new Error("No user logged in");
     const newBudget: Budget = {
       ...budgetData,
       id: `budget-${Date.now()}`,
+      institutionId: currentUser.institutionId,
     };
     setBudgets((prev) => [...prev, newBudget]);
   };
   
-  const addExpense = (expenseData: Omit<Expense, 'id' | 'submittedBy' | 'auditTrail' | 'status'>) => {
+  const addExpense = (expenseData: Omit<Expense, 'id' | 'submittedBy' | 'auditTrail' | 'status' | 'institutionId'>) => {
     if (!currentUser) throw new Error("No user logged in");
     const newExpense: Expense = {
       ...expenseData,
       id: `exp-${Date.now()}`,
       submittedBy: currentUser.id,
+      institutionId: currentUser.institutionId,
       status: 'Submitted',
       auditTrail: [
         {
@@ -172,6 +198,9 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     setExpenses((prev) =>
       prev.map((exp) => {
         if (exp.id === expenseId) {
+          // Ensure reviewer is from the same institution
+          if(exp.institutionId !== currentUser.institutionId) throw new Error("Unauthorized: You can only review expenses for your own institution.");
+
           const newAuditLog = {
             timestamp: new Date().toISOString(),
             userId: currentUser.id,
@@ -195,16 +224,19 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
   const getUserById = (userId: string) => users.find(u => u.id === userId);
 
   const publicStats = useMemo<PublicStats>(() => {
-    const totalAllocated = budgets.reduce((sum, b) => sum + b.allocated, 0);
-    const approvedExpenses = expenses.filter(e => e.status === 'Approved');
+    const relevantBudgets = budgets.filter(b => b.institutionId === currentUser?.institutionId)
+    const relevantExpenses = expenses.filter(e => e.institutionId === currentUser?.institutionId)
+
+    const totalAllocated = relevantBudgets.reduce((sum, b) => sum + b.allocated, 0);
+    const approvedExpenses = relevantExpenses.filter(e => e.status === 'Approved');
     const totalSpent = approvedExpenses.reduce((sum, e) => sum + e.amount, 0);
 
     const departmentData = DEPARTMENTS.map(department => {
-      const departmentBudgets = budgets.filter(b => b.department === department);
+      const departmentBudgets = relevantBudgets.filter(b => b.department === department);
       const allocated = departmentBudgets.reduce((sum, b) => sum + b.allocated, 0);
       
       const departmentApprovedExpenses = approvedExpenses.filter(e => {
-        const budget = budgets.find(b => b.id === e.budgetId);
+        const budget = relevantBudgets.find(b => b.id === e.budgetId);
         return budget?.department === department;
       });
       const spent = departmentApprovedExpenses.reduce((sum, e) => sum + e.amount, 0);
@@ -223,7 +255,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
       totalSpent,
       departmentData
     };
-  }, [budgets, expenses]);
+  }, [budgets, expenses, currentUser]);
 
   const value = {
     users,
@@ -232,9 +264,11 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     login,
     logout,
     signup,
-    budgets,
+    institutions,
+    getInstitutionById,
+    budgets: currentUser ? budgets.filter(b => b.institutionId === currentUser.institutionId) : [],
     addBudget,
-    expenses,
+    expenses: currentUser ? expenses.filter(e => e.institutionId === currentUser.institutionId) : [],
     addExpense,
     updateExpenseStatus,
     getExpensesForBudget,
@@ -243,6 +277,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     getUserById,
     departments: DEPARTMENTS,
     expenseCategories: EXPENSE_CATEGORIES,
+    paymentModes: PAYMENT_MODES,
     publicStats,
   };
 

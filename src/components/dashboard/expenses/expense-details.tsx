@@ -22,16 +22,16 @@ export function ExpenseDetails({ expense, onUpdate }: { expense: Expense; onUpda
   const submitter = getUserById(expense.submittedBy);
 
   const handleStatusUpdate = (status: 'Approved' | 'Rejected') => {
-    if (!comments) {
+    if (!comments && status === 'Rejected') {
       toast({
         title: 'Comment Required',
-        description: 'Please provide a comment before approving or rejecting.',
+        description: 'Please provide a comment before rejecting an expense.',
         variant: 'destructive',
       });
       return;
     }
     try {
-      updateExpenseStatus(expense.id, status, comments);
+      updateExpenseStatus(expense.id, status, comments || 'Approved');
       toast({
         title: `Expense ${status}`,
         description: `The expense "${expense.title}" has been ${status.toLowerCase()}.`
@@ -80,6 +80,14 @@ export function ExpenseDetails({ expense, onUpdate }: { expense: Expense; onUpda
                 <p className="text-muted-foreground">Category</p>
                 <p className="font-semibold">{expense.category}</p>
               </div>
+              <div>
+                <p className="text-muted-foreground">Payment Mode</p>
+                <p className="font-semibold">{expense.paymentMode}</p>
+              </div>
+               {expense.transactionReference && <div>
+                <p className="text-muted-foreground">Transaction Ref.</p>
+                <p className="font-semibold">{expense.transactionReference}</p>
+              </div>}
               <div className="col-span-full">
                 <p className="text-muted-foreground">Budget</p>
                 <p className="font-semibold">{budget?.title} ({budget?.department})</p>
@@ -88,7 +96,7 @@ export function ExpenseDetails({ expense, onUpdate }: { expense: Expense; onUpda
           </CardContent>
           {canReview && (
             <CardFooter className="flex flex-col items-start gap-4 border-t pt-6">
-               <Label htmlFor="comments">Comments</Label>
+               <Label htmlFor="comments">Comments (Required for Rejection)</Label>
                <Textarea 
                 id="comments"
                 placeholder="Add comments for approval or rejection..."

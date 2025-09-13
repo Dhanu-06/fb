@@ -14,13 +14,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { analyzeReceipt } from '@/app/actions';
 import { Loader2, Wand2 } from 'lucide-react';
+import type { PaymentMode } from '@/lib/types';
 
 export function ExpenseForm() {
-  const { addExpense, budgets, expenseCategories } = useClarity();
+  const { addExpense, budgets, expenseCategories, paymentModes } = useClarity();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -32,6 +32,9 @@ export function ExpenseForm() {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   
+  const [paymentMode, setPaymentMode] = useState<PaymentMode | ''>('');
+  const [transactionReference, setTransactionReference] = useState('');
+
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<{ categories: string[], tags: string[] } | null>(null);
 
@@ -82,7 +85,7 @@ export function ExpenseForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !amount || !vendor || !budgetId || !category || !receiptFile) {
+    if (!title || !amount || !vendor || !budgetId || !category || !receiptFile || !paymentMode) {
       toast({
         title: 'Missing Fields',
         description: 'Please fill out all fields and upload a receipt.',
@@ -91,7 +94,6 @@ export function ExpenseForm() {
       return;
     }
     
-    // In a real app, you'd upload the file and get a URL. Here we'll just use the preview.
     addExpense({
       title,
       amount: Number(amount),
@@ -100,6 +102,8 @@ export function ExpenseForm() {
       category,
       date: new Date().toISOString(),
       receiptUrl: receiptPreview || '',
+      paymentMode: paymentMode,
+      transactionReference,
     });
 
     toast({
@@ -108,6 +112,16 @@ export function ExpenseForm() {
     });
 
     router.push('/dashboard/expenses');
+  };
+
+  const getTransactionReferenceLabel = () => {
+    switch (paymentMode) {
+      case 'UPI': return 'UPI Reference Number';
+      case 'Bank Transfer': return 'Transaction ID';
+      case 'Cheque': return 'Cheque Number';
+      case 'Card': return 'Card Transaction ID';
+      default: return 'Transaction Reference';
+    }
   };
 
   return (
@@ -161,6 +175,28 @@ export function ExpenseForm() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+               <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="paymentMode">Payment Mode</Label>
+                  <Select onValueChange={(v: PaymentMode) => setPaymentMode(v)} value={paymentMode}>
+                    <SelectTrigger id="paymentMode">
+                      <SelectValue placeholder="Select mode" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {paymentModes.map((mode) => (
+                        <SelectItem key={mode} value={mode}>{mode}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {paymentMode && !['Cash', 'In-Kind'].includes(paymentMode) && (
+                   <div className="grid gap-2">
+                    <Label htmlFor="transactionReference">{getTransactionReferenceLabel()}</Label>
+                    <Input id="transactionReference" value={transactionReference} onChange={(e) => setTransactionReference(e.target.value)} placeholder="Enter reference ID" />
+                  </div>
+                )}
               </div>
 
                {analysisResult && (
