@@ -1,14 +1,14 @@
 'use client';
 
-import type { Budget, Expense, Role, User, PublicStats } from '@/lib/types';
-import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
+import type { Budget, Expense, Role, User, PublicStats, SignupData } from '@/lib/types';
+import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { DEPARTMENTS, EXPENSE_CATEGORIES } from '@/lib/types';
 
 // Mock Data
 const initialUsers: User[] = [
-  { id: 'user-1', name: 'Admin User', role: 'Admin' },
-  { id: 'user-2', name: 'Reviewer User', role: 'Reviewer' },
-  { id: 'user-3', name: 'Public User', role: 'Public' },
+  { id: 'user-1', name: 'Admin User', role: 'Admin', email: 'admin@example.com', password: 'password' },
+  { id: 'user-2', name: 'Reviewer User', role: 'Reviewer', email: 'reviewer@example.com', password: 'password' },
+  { id: 'user-3', name: 'Public User', role: 'Public', email: 'public@example.com', password: 'password' },
 ];
 
 const initialBudgets: Budget[] = [
@@ -74,9 +74,10 @@ const initialExpenses: Expense[] = [
 interface ClarityContextType {
   users: User[];
   currentUser: User | null;
-  setCurrentUser: (user: User | null) => void;
-  login: (role: Role) => void;
+  isLoading: boolean;
+  login: (email: string, password: string) => User;
   logout: () => void;
+  signup: (data: SignupData) => User;
   budgets: Budget[];
   addBudget: (budget: Omit<Budget, 'id'>) => void;
   expenses: Expense[];
@@ -95,18 +96,49 @@ const ClarityContext = createContext<ClarityContextType | undefined>(undefined);
 
 // Provider Component
 export const ClarityProvider = ({ children }: { children: ReactNode }) => {
-  const [users] = useState<User[]>(initialUsers);
+  const [users, setUsers] = useState<User[]>(initialUsers);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [budgets, setBudgets] = useState<Budget[]>(initialBudgets);
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
 
-  const login = (role: Role) => {
-    const user = users.find((u) => u.role === role);
-    setCurrentUser(user || null);
+  useEffect(() => {
+    try {
+      const storedUser = localStorage.getItem('clarity-user');
+      if (storedUser) {
+        setCurrentUser(JSON.parse(storedUser));
+      }
+    } catch (error) {
+      console.error("Failed to parse user from localStorage", error);
+    }
+    setIsLoading(false);
+  }, []);
+
+  const login = (email: string, password: string): User => {
+    const user = users.find((u) => u.email === email && u.password === password);
+    if (!user) {
+      throw new Error("Invalid email or password.");
+    }
+    setCurrentUser(user);
+    localStorage.setItem('clarity-user', JSON.stringify(user));
+    return user;
   };
 
   const logout = () => {
     setCurrentUser(null);
+    localStorage.removeItem('clarity-user');
+  };
+
+  const signup = (data: SignupData): User => {
+    if (users.some(u => u.email === data.email)) {
+      throw new Error("User with this email already exists.");
+    }
+    const newUser: User = {
+      ...data,
+      id: `user-${Date.now()}`
+    };
+    setUsers(prev => [...prev, newUser]);
+    return newUser;
   };
 
   const addBudget = (budgetData: Omit<Budget, 'id'>) => {
@@ -196,9 +228,10 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
   const value = {
     users,
     currentUser,
-    setCurrentUser,
+    isLoading,
     login,
     logout,
+    signup,
     budgets,
     addBudget,
     expenses,

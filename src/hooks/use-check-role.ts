@@ -7,10 +7,12 @@ import { useEffect } from 'react';
 import { toast } from './use-toast';
 
 export function useCheckRole(requiredRoles: Role[]) {
-  const { currentUser } = useClarity();
+  const { currentUser, isLoading } = useClarity();
   const router = useRouter();
 
   useEffect(() => {
+    if (isLoading) return;
+
     if (!currentUser) {
       toast({
         title: 'Authentication Required',
@@ -33,9 +35,9 @@ export function useCheckRole(requiredRoles: Role[]) {
         router.replace('/dashboard');
       }
     }
-  }, [currentUser, router, requiredRoles]);
+  }, [currentUser, isLoading, router, requiredRoles]);
 
   const hasRequiredRole = currentUser && requiredRoles.includes(currentUser.role);
   
-  return { currentUser: hasRequiredRole ? currentUser : null, isLoading: !currentUser };
+  return { currentUser: hasRequiredRole ? currentUser : null, hasRequiredRole, isLoading };
 }

@@ -1,43 +1,48 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useClarity } from '@/context/clarity-provider';
 import { Button } from '@/components/ui/button';
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useState } from 'react';
-import type { Role } from '@/lib/types';
 import { Logo } from '../logo';
 import { toast } from '@/hooks/use-toast';
 
 export function LoginForm() {
-  const [selectedRole, setSelectedRole] = useState<Role>('Public');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const { login } = useClarity();
   const router = useRouter();
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    login(selectedRole);
-    toast({
-      title: 'Login Successful',
-      description: `You have been logged in as ${selectedRole}.`,
-    });
-    if (selectedRole === 'Public') {
-      router.push('/public');
-    } else {
-      router.push('/dashboard');
+    try {
+      const user = login(email, password);
+      toast({
+        title: 'Login Successful',
+        description: `Welcome back, ${user.name}!`,
+      });
+      if (user.role === 'Public') {
+        router.push('/public');
+      } else {
+        router.push('/dashboard');
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Login Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -48,27 +53,42 @@ export function LoginForm() {
           <Logo />
         </div>
         <CardTitle className="text-2xl">Welcome Back</CardTitle>
-        <CardDescription>Select your role to access your dashboard.</CardDescription>
+        <CardDescription>Enter your credentials to access your dashboard.</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleLogin} className="grid gap-4">
           <div className="grid gap-2">
-            <Select onValueChange={(value: Role) => setSelectedRole(value)} defaultValue={selectedRole}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Admin">Admin</SelectItem>
-                <SelectItem value="Reviewer">Reviewer</SelectItem>
-                <SelectItem value="Public">Public</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="admin@example.com"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="password">Password</Label>
+            <Input 
+              id="password" 
+              type="password" 
+              required 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
           </div>
           <Button type="submit" className="w-full">
             Login
           </Button>
         </form>
       </CardContent>
+      <CardFooter className="flex justify-center text-sm">
+        Don't have an account?&nbsp;
+        <Link href="/signup" className="font-semibold text-primary hover:underline">
+          Sign up
+        </Link>
+      </CardFooter>
     </Card>
   );
 }
