@@ -6,15 +6,26 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { useClarity } from '@/context/clarity-provider';
 import { useMemo } from 'react';
 import { formatCurrency } from '@/lib/utils';
-import type { Budget, Expense } from '@/lib/types';
+import type { Budget, Expense, Currency } from '@/lib/types';
 
 
-export function BudgetSummaryChart({ budgets: budgetsProp, expenses: expensesProp, departments: departmentsProp }: { budgets?: Budget[], expenses?: Expense[], departments?: string[] }) {
+interface BudgetSummaryChartProps {
+    budgets?: Budget[];
+    expenses?: Expense[];
+    departments?: string[];
+    currency?: Currency;
+    exchangeRate?: number;
+}
+
+
+export function BudgetSummaryChart({ budgets: budgetsProp, expenses: expensesProp, departments: departmentsProp, currency: currencyProp, exchangeRate: exchangeRateProp }: BudgetSummaryChartProps) {
   const context = useClarity();
 
   const budgets = budgetsProp !== undefined ? budgetsProp : context.budgets;
   const expenses = expensesProp !== undefined ? expensesProp : context.expenses;
   const departments = departmentsProp !== undefined ? departmentsProp : context.departments;
+  const currency = currencyProp !== undefined ? currencyProp : context.currency;
+  const exchangeRate = exchangeRateProp !== undefined ? exchangeRateProp : context.exchangeRate;
 
   const chartData = useMemo(() => {
     return departments.map(department => {
@@ -49,6 +60,8 @@ export function BudgetSummaryChart({ budgets: budgetsProp, expenses: expensesPro
     )
   }
 
+  const valueFormatter = (value: number) => formatCurrency(value, currency, exchangeRate);
+
 
   return (
     <Card>
@@ -61,13 +74,13 @@ export function BudgetSummaryChart({ budgets: budgetsProp, expenses: expensesPro
           <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="name" stroke="hsl(var(--foreground))" fontSize={12} tickLine={false} axisLine={false} />
-            <YAxis stroke="hsl(var(--foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => formatCurrency(value as number)}/>
+            <YAxis stroke="hsl(var(--foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={valueFormatter}/>
             <Tooltip
               contentStyle={{
                 backgroundColor: 'hsl(var(--background))',
                 borderColor: 'hsl(var(--border))',
               }}
-              formatter={(value) => formatCurrency(value as number)}
+              formatter={valueFormatter}
             />
             <Legend />
             <Bar dataKey="Allocated" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />

@@ -1,23 +1,23 @@
 'use client';
+
 import { useClarity } from '@/context/clarity-provider';
-import { PublicLayout } from './layout';
+import { Loader2 } from 'lucide-react';
 import { StatsCards } from '@/components/dashboard/overview/stats-cards';
 import { BudgetSummaryChart } from '@/components/dashboard/overview/budget-summary-chart';
 import { PublicBudgetList } from './_components/public-budget-list';
 import { PublicExpenseList } from './_components/public-expense-list';
 import { DEPARTMENTS } from '@/lib/types';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
-export default function PublicPage() {
-  const { publicData } = useClarity();
+export default function PublicDashboardPage() {
+  const { publicData, currency, exchangeRate } = useClarity();
   const { institutions, budgets, expenses, isLoading, error } = publicData;
 
   if (isLoading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-[80vh] items-center justify-center">
         <div className="text-center">
-          <div className="h-8 w-8 mx-auto mb-4 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-muted-foreground">Loading Public Dashboard...</p>
+          <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
+          <p className="mt-4 text-muted-foreground">Loading Public Data...</p>
         </div>
       </div>
     );
@@ -25,51 +25,53 @@ export default function PublicPage() {
 
   if (error) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-center text-destructive">
-          <p className="text-lg font-semibold">Could not download public data.</p>
-          <p className="text-sm">Please ensure Firestore rules are set up correctly.</p>
+      <div className="flex h-[80vh] items-center justify-center text-center">
+        <div>
+            <h2 className="text-2xl font-semibold text-destructive">Could not download public data</h2>
+            <p className="text-muted-foreground mt-2">There was an issue connecting to the database. Please try again later.</p>
         </div>
       </div>
     );
   }
 
+   if (budgets.length === 0 && expenses.length === 0) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center text-center">
+        <div>
+          <h2 className="text-2xl font-semibold">No Public Data Available</h2>
+          <p className="text-muted-foreground mt-2">This institution has not published any financial data yet.</p>
+        </div>
+      </div>
+    );
+  }
+
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className='text-center'>
-        <h1 className="text-3xl font-bold">Public Transparency Dashboard</h1>
-        <p className="text-muted-foreground">
-          A clear view into our institution&apos;s financial activities.
+    <div className="container mx-auto p-4 md:p-6">
+      <div className="text-center mb-8">
+        <h1 className="text-3xl md:text-4xl font-bold">Public Financial Dashboard</h1>
+        <p className="text-muted-foreground mt-2">
+          Financial transparency for {institutions[0]?.name || 'our institution'}.
         </p>
       </div>
 
-      <StatsCards budgets={budgets} expenses={expenses} />
-      
-      <div className="grid gap-6 lg:grid-cols-2">
-        <BudgetSummaryChart budgets={budgets} expenses={expenses} departments={DEPARTMENTS} />
+      <div className="flex flex-col gap-6">
+        <StatsCards budgets={budgets} expenses={expenses} currency={currency} exchangeRate={exchangeRate} />
         
-        <Card>
-            <CardHeader>
-                <CardTitle>About This Dashboard</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="text-sm text-muted-foreground">
-                    This dashboard provides a real-time, transparent view of fund allocation and expenditures for {institutions[0]?.name || 'our institution'}. All data is sourced directly from our financial records and is updated as expenses are approved. We believe in open accountability and welcome feedback from our community.
-                </p>
-            </CardContent>
-        </Card>
-      </div>
+        <div className="grid gap-6 md:grid-cols-5">
+            <div className="md:col-span-3">
+                <BudgetSummaryChart budgets={budgets} expenses={expenses} departments={DEPARTMENTS} currency={currency} exchangeRate={exchangeRate} />
+            </div>
+            <div className="md:col-span-2">
+                 <PublicBudgetList budgets={budgets} expenses={expenses} currency={currency} exchangeRate={exchangeRate} />
+            </div>
+        </div>
 
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">Budget Overview</h2>
-        <PublicBudgetList budgets={budgets} expenses={expenses} />
-      </div>
+        <div>
+            <PublicExpenseList expenses={expenses} budgets={budgets} currency={currency} exchangeRate={exchangeRate} />
+        </div>
 
-      <div>
-        <h2 className="text-2xl font-semibold mb-4">Approved Expenses</h2>
-        <PublicExpenseList budgets={budgets} expenses={expenses} />
       </div>
-
     </div>
   );
 }

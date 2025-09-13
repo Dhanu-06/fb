@@ -5,9 +5,13 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import React from 'react';
+import { useClarity } from '@/context/clarity-provider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import type { Currency } from '@/lib/types';
 
 export function Header() {
   const pathname = usePathname();
+  const { currency, setCurrency } = useClarity();
   const pathSegments = pathname.split('/').filter(Boolean);
 
   const breadcrumbItems = pathSegments.map((segment, index) => {
@@ -42,6 +46,17 @@ export function Header() {
           {breadcrumbItems}
         </BreadcrumbList>
       </Breadcrumb>
+      <div className="ml-auto">
+        <Select value={currency} onValueChange={(value: Currency) => setCurrency(value)}>
+          <SelectTrigger className="w-[120px]">
+            <SelectValue placeholder="Select Currency" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="INR">INR (₹)</SelectItem>
+            <SelectItem value="USD">USD ($)</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
     </header>
   );
 }

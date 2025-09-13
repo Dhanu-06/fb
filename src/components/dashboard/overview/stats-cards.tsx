@@ -6,15 +6,24 @@ import { formatCurrency } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, Landmark, PiggyBank } from 'lucide-react';
 import { useMemo } from 'react';
-import type { Budget, Expense } from '@/lib/types';
+import type { Budget, Expense, Currency } from '@/lib/types';
 
-// Allow props to be passed for public page usage
-export function StatsCards({ budgets: budgetsProp, expenses: expensesProp }: { budgets?: Budget[], expenses?: Expense[] }) {
+interface StatsCardsProps {
+  budgets?: Budget[];
+  expenses?: Expense[];
+  currency?: Currency;
+  exchangeRate?: number;
+}
+
+
+export function StatsCards({ budgets: budgetsProp, expenses: expensesProp, currency: currencyProp, exchangeRate: exchangeRateProp }: StatsCardsProps) {
   const context = useClarity();
   
-  // Use props if provided, otherwise use context
   const budgets = budgetsProp !== undefined ? budgetsProp : context.budgets;
   const expenses = expensesProp !== undefined ? expensesProp : context.expenses;
+  const currency = currencyProp !== undefined ? currencyProp : context.currency;
+  const exchangeRate = exchangeRateProp !== undefined ? exchangeRateProp : context.exchangeRate;
+
 
   const { totalBudget, totalSpent, remaining } = useMemo(() => {
     const totalBudget = budgets.reduce((sum, b) => sum + b.allocated, 0);
@@ -33,7 +42,7 @@ export function StatsCards({ budgets: budgetsProp, expenses: expensesProp }: { b
           <Landmark className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatCurrency(totalBudget)}</div>
+          <div className="text-2xl font-bold">{formatCurrency(totalBudget, currency, exchangeRate)}</div>
           <p className="text-xs text-muted-foreground">
             Total funds allocated across all departments.
           </p>
@@ -45,7 +54,7 @@ export function StatsCards({ budgets: budgetsProp, expenses: expensesProp }: { b
           <DollarSign className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatCurrency(totalSpent)}</div>
+          <div className="text-2xl font-bold">{formatCurrency(totalSpent, currency, exchangeRate)}</div>
           <p className="text-xs text-muted-foreground">
             Total approved expenses.
           </p>
@@ -57,7 +66,7 @@ export function StatsCards({ budgets: budgetsProp, expenses: expensesProp }: { b
           <PiggyBank className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{formatCurrency(remaining)}</div>
+          <div className="text-2xl font-bold">{formatCurrency(remaining, currency, exchangeRate)}</div>
            <p className="text-xs text-muted-foreground">
             Total budget minus spent funds.
           </p>

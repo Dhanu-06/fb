@@ -18,7 +18,7 @@ import { ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 
 export function RecentExpenses() {
-  const { expenses, getBudgetById } = useClarity();
+  const { expenses, getBudgetById, currency, exchangeRate } = useClarity();
 
   const recentExpenses = useMemo(() => {
     return [...expenses]
@@ -76,7 +76,7 @@ export function RecentExpenses() {
                      </Link>
                   </TableCell>
                   <TableCell>{budget?.department || 'N/A'}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(expense.amount)}</TableCell>
+                  <TableCell className="text-right">{formatCurrency(expense.amount, currency, exchangeRate)}</TableCell>
                   <TableCell className="text-center">
                     <Badge variant={getStatusVariant(expense.status)}>{expense.status}</Badge>
                   </TableCell>

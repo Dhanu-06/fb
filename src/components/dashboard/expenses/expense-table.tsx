@@ -29,7 +29,7 @@ import { formatCurrency } from '@/lib/utils';
 import { Expense } from '@/lib/types';
 
 export function ExpenseTable() {
-  const { expenses, getBudgetById, currentUser } = useClarity();
+  const { expenses, getBudgetById, currentUser, currency, exchangeRate } = useClarity();
   const router = useRouter();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -129,7 +129,7 @@ export function ExpenseTable() {
                     <TableCell>{budget?.department || 'N/A'}</TableCell>
                     <TableCell>{expense.vendor}</TableCell>
                     <TableCell className="text-right">
-                      {formatCurrency(expense.amount)}
+                      {formatCurrency(expense.amount, currency, exchangeRate)}
                     </TableCell>
                     <TableCell className="text-center">
                       <Badge variant={getStatusVariant(expense.status)}>
