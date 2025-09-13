@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { Budget, Expense, Role, User, SignupData, Institution, PaymentMode, Payment, AuditLog, Feedback, Currency, ExpenseUpdate } from '@/lib/types';
@@ -277,7 +278,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     const updatedTrail = [...(existingExpense.auditTrail || []), newAuditLog];
 
     let receiptUrl = existingExpense.receiptUrl;
-    if (expenseData.receiptUrl && expenseData.receiptUrl !== existingExpense.receiptUrl) {
+    if (expenseData.receiptUrl && expenseData.receiptUrl !== existingExpense.receiptUrl && expenseData.receiptUrl.startsWith('data:')) {
       if (existingExpense.receiptUrl && !existingExpense.receiptUrl.includes('picsum.photos')) {
           try {
             const oldReceiptRef = ref(storage, existingExpense.receiptUrl);
@@ -302,7 +303,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
 
     setExpenses(prev =>
         prev.map(exp =>
-            exp.id === expenseId ? { ...exp, ...finalUpdateData } as Expense : exp
+            exp.id === expenseId ? { ...exp, ...existingExpense, ...finalUpdateData } as Expense : exp
         )
     );
   }
