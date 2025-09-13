@@ -1,3 +1,4 @@
+
 'use client';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { MainSidebar } from '@/components/dashboard/sidebar';
@@ -22,10 +23,14 @@ export default function DashboardLayout({
     }
   }, [isLoading, currentUser, router]);
 
+  // Updated loading UI to match the public page.
   if (isLoading || !hasRequiredRole) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-center">
+            <div className="h-8 w-8 mx-auto mb-4 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            <p className="text-muted-foreground">Verifying credentials...</p>
+        </div>
       </div>
     );
   }
