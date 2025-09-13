@@ -26,6 +26,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { fetchAllPublicData } from '@/lib/public-data';
 
 // Context Type
 interface ClarityContextType {
@@ -52,6 +53,13 @@ interface ClarityContextType {
   expenseCategories: string[];
   paymentModes: PaymentMode[];
   addFeedback: (feedback: Omit<Feedback, 'id' | 'createdAt'>) => void;
+  publicData: {
+    institutions: Institution[];
+    budgets: Budget[];
+    expenses: Expense[];
+    error: any;
+    isLoading: boolean;
+  }
 }
 
 const ClarityContext = createContext<ClarityContextType | undefined>(undefined);
@@ -67,13 +75,21 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
 
+  const [publicData, setPublicData] = useState<{institutions: Institution[], budgets: Budget[], expenses: Expense[], error: any, isLoading: boolean}>({
+    institutions: [],
+    budgets: [],
+    expenses: [],
+    error: null,
+    isLoading: true,
+  });
+
   const fetchUserData = useCallback(async (uid: string) => {
     const userDoc = await getDoc(doc(db, 'users', uid));
     if (userDoc.exists()) {
-        const userData = userDoc.data() as User;
-        setCurrentUser({ ...userData, id: uid });
+        const userData = userDoc.data() as Omit<User, 'id'>;
+        const userWithId = { ...userData, id: uid };
+        setCurrentUser(userWithId);
         
-        // Fetch institution-specific data
         const instId = userData.institutionId;
         if (instId) {
             const [instSnap, budgetsSnap, expensesSnap, paymentsSnap, usersSnap] = await Promise.all([
@@ -92,7 +108,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
             setPayments(paymentsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Payment)));
             setUsers(usersSnap.docs.map(d => ({ id: d.id, ...d.data() } as User)));
         }
-        return { ...userData, id: uid };
+        return userWithId;
     }
     return null;
   }, []);
@@ -106,7 +122,6 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
             await fetchUserData(user.uid);
         } else {
             setCurrentUser(null);
-            // Clear data
             setInstitutions([]);
             setBudgets([]);
             setExpenses([]);
@@ -118,6 +133,19 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, [fetchUserData]);
 
+  // Fetch public data separately
+  useEffect(() => {
+    const loadPublicData = async () => {
+      try {
+        const { institutions, budgets, expenses } = await fetchAllPublicData();
+        setPublicData({ institutions, budgets, expenses, error: null, isLoading: false });
+      } catch (error) {
+        console.error("Could not download public data:", error);
+        setPublicData({ institutions: [], budgets: [], expenses: [], error, isLoading: false });
+      }
+    };
+    loadPublicData();
+  }, []);
 
   const login = async (email: string, password: string): Promise<User> => {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -148,7 +176,6 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     
     await setDoc(doc(db, 'users', user.uid), newUser);
 
-    // If it's the first user, create the institution
     const institutionSnap = await getDoc(doc(db, 'institutions', data.institutionId));
     if (!institutionSnap.exists()) {
         await setDoc(doc(db, 'institutions', data.institutionId), {
@@ -192,17 +219,17 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
         },
       ],
       ...expenseData,
-      receiptUrl: '', // Initially set to empty
-      date: Timestamp.fromDate(new Date(expenseData.date)).toDate().toISOString(),
+      receiptUrl: '',
+      date: new Date(expenseData.date).toISOString(),
     };
 
     const docRef = await addDoc(collection(db, 'expenses'), newExpenseData);
-    const newExpense = { ...newExpenseData, id: docRef.id } as Expense;
     
-    // Optimistically update the UI
-    setExpenses(prev => [...prev, newExpense]);
+    // Use a temporary ID for optimistic update until we get the real one
+    const tempId = `temp-${Date.now()}`;
+    const optimisticExpense = { ...newExpenseData, id: tempId } as Expense;
+    setExpenses(prev => [...prev, optimisticExpense]);
 
-    // Asynchronously upload the image and update the expense
     const uploadAndUpdateReceipt = async () => {
         let finalReceiptUrl = placeholderReceipt;
         try {
@@ -216,12 +243,12 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
 
             setExpenses(prev => 
                 prev.map(exp => 
-                    exp.id === docRef.id ? { ...exp, receiptUrl: finalReceiptUrl } : exp
+                    exp.id === tempId ? { ...exp, id: docRef.id, receiptUrl: finalReceiptUrl } : exp
                 )
             );
         } catch (error) {
             console.error("Failed to upload receipt:", error);
-            // Optionally update the expense with an error state for the receipt
+            setExpenses(prev => prev.filter(exp => exp.id !== tempId));
         }
     };
 
@@ -234,7 +261,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
       const newPaymentData = {
           ...paymentData,
           institutionId: currentUser.institutionId,
-          createdAt: Timestamp.fromDate(new Date()).toDate().toISOString(),
+          createdAt: new Date().toISOString(),
       };
 
       const docRef = await addDoc(collection(db, 'payments'), newPaymentData);
@@ -272,7 +299,6 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
       createdAt: new Date().toISOString(),
     };
     await addDoc(collection(db, 'feedback'), newFeedbackData);
-    // We don't need to store feedback in local state for this app
   };
 
 
@@ -306,6 +332,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     expenseCategories: EXPENSE_CATEGORIES,
     paymentModes: PAYMENT_MODES,
     addFeedback,
+    publicData,
   };
 
   return <ClarityContext.Provider value={value}>{children}</ClarityContext.Provider>;
@@ -319,3 +346,5 @@ export const useClarity = () => {
   }
   return context;
 };
+
+    
