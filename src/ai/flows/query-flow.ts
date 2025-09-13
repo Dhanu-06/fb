@@ -26,7 +26,7 @@ const FinancialQueryOutputSchema = z.object({
 // Define the prompt for the AI model
 const queryPrompt = ai.definePrompt({
   name: 'financialQueryPrompt',
-  model: 'gemini-1.5-flash-preview',
+  model: 'googleai/gemini-1.5-flash-preview',
   input: { schema: FinancialQueryInputSchema },
   output: { schema: FinancialQueryOutputSchema },
   prompt: `You are an expert financial analyst for an educational institution.
