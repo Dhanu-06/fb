@@ -10,7 +10,7 @@ import {
   SidebarFooter,
 } from '@/components/ui/sidebar';
 import { useClarity } from '@/context/clarity-provider';
-import { LayoutDashboard, Wallet, Receipt, LogOut, ShieldCheck, Users } from 'lucide-react';
+import { LayoutDashboard, Wallet, Receipt, LogOut, ShieldCheck, Users, Eye } from 'lucide-react';
 import { Logo } from '../logo';
 import { usePathname, useRouter } from 'next/navigation';
 
@@ -31,6 +31,12 @@ export function MainSidebar() {
       label: 'Overview',
       roles: ['Admin', 'Reviewer'],
     },
+     {
+      href: '/dashboard',
+      icon: Eye,
+      label: 'Public View',
+      roles: ['Public'],
+    },
     {
       href: '/dashboard/budgets',
       icon: Wallet,
@@ -48,7 +54,7 @@ export function MainSidebar() {
   const roleIcons = {
     Admin: <ShieldCheck className="mr-2 h-4 w-4" />,
     Reviewer: <Users className="mr-2 h-4 w-4" />,
-    Public: null,
+    Public: <Eye className="mr-2 h-4 w-4" />,
   };
 
   return (
@@ -60,7 +66,7 @@ export function MainSidebar() {
         <SidebarMenu>
           {menuItems.map((item) =>
             currentUser && item.roles.includes(currentUser.role) ? (
-              <SidebarMenuItem key={item.href}>
+              <SidebarMenuItem key={item.href + item.label}>
                 <SidebarMenuButton
                   asChild
                   isActive={pathname === item.href}

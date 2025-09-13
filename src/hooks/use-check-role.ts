@@ -29,11 +29,7 @@ export function useCheckRole(requiredRoles: Role[]) {
         description: "You don't have permission to view this page.",
         variant: 'destructive',
       });
-      if (currentUser.role === 'Public') {
-        router.replace('/public');
-      } else {
-        router.replace('/dashboard');
-      }
+      router.replace('/dashboard');
     }
   }, [currentUser, isLoading, router, requiredRoles]);
 

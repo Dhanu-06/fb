@@ -14,7 +14,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { currentUser, isLoading } = useClarity();
-  const { hasRequiredRole } = useCheckRole(['Admin', 'Reviewer']);
+  const { hasRequiredRole } = useCheckRole(['Admin', 'Reviewer', 'Public']);
   const router = useRouter();
 
   useEffect(() => {

@@ -59,5 +59,5 @@ export interface PublicStats {
     departmentData: PublicDepartmentStat[];
 }
 
-export const DEPARTMENTS = ["Library", "Sports", "Food", "Maintenance", "Lab", "Events"];
+export const DEPARTMENTS = ["Library", "Sports", "Food", "Maintenance", "Lab", "Events", "Transport", "IT Services", "Student Welfare", "Administration"];
 export const EXPENSE_CATEGORIES = ["Supplies", "Services", "Equipment", "Travel", "Utilities", "Miscellaneous"];
