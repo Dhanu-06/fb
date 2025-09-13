@@ -23,6 +23,7 @@ import {
     getDocs,
     Timestamp,
     updateDoc,
+    writeBatch
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -172,7 +173,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const docRef = await addDoc(collection(db, 'budgets'), newBudgetData);
-    setBudgets(prev => [...prev, { ...newBudgetData, id: docRef.id }]);
+    setBudgets(prev => [...prev, { ...newBudgetData, id: docRef.id } as Budget]);
   };
   
   const addExpense = async (expenseData: Omit<Expense, 'id' | 'submittedBy' | 'auditTrail' | 'status' | 'institutionId'>) => {
@@ -256,7 +257,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
             comments,
         };
         const updatedTrail = [...(expense.auditTrail || []), newAuditLog];
-        await setDoc(expenseRef, { status: status, auditTrail: updatedTrail }, { merge: true });
+        await updateDoc(expenseRef, { status: status, auditTrail: updatedTrail });
 
         setExpenses(prev =>
             prev.map(exp => 
@@ -287,7 +288,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     departmentData: []
   }
 
-  const fetchAllPublicData = async () => {
+  const fetchAllPublicData = async (): Promise<{ institutions: Institution[], budgets: Budget[], expenses: Expense[] }> => {
     const [instSnap, budgetsSnap, expensesSnap] = await Promise.all([
         getDocs(collection(db, 'institutions')),
         getDocs(collection(db, 'budgets')),
@@ -339,3 +340,5 @@ export const useClarity = () => {
   }
   return context;
 };
+
+    
