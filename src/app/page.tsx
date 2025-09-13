@@ -48,8 +48,8 @@ export default function Home() {
             </p>
             <div className="mt-8 flex justify-center gap-4">
               <Button size="lg" asChild>
-                <Link href="/dashboard">
-                  Go to Dashboard <ArrowRight className="ml-2" />
+                <Link href="/login">
+                  Get Started <ArrowRight className="ml-2" />
                 </Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
@@ -113,7 +113,7 @@ export default function Home() {
             </p>
             <div className="mt-8">
               <Button size="lg" asChild>
-                <Link href="/signup">Get Started Now</Link>
+                <Link href="/login">Get Started Now</Link>
               </Button>
             </div>
           </div>
