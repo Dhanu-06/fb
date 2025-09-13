@@ -305,7 +305,10 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
   const getExpensesForBudget = (budgetId: string) => expenses.filter(e => e.budgetId === budgetId);
   const getBudgetById = (budgetId: string) => budgets.find(b => b.id === budgetId);
   const getExpenseById = (expenseId: string) => expenses.find(e => e.id === expenseId);
-  const getUserById = (userId: string) => users.find(u => u.id === userId);
+  
+  const getUserById = useCallback((userId: string) => {
+    return users.find(u => u.id === userId);
+  }, [users]);
 
 
   const value = {
@@ -347,4 +350,5 @@ export const useClarity = () => {
   return context;
 };
 
+    
     
