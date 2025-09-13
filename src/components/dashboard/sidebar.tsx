@@ -10,7 +10,7 @@ import {
   SidebarFooter,
 } from '@/components/ui/sidebar';
 import { useClarity } from '@/context/clarity-provider';
-import { LayoutDashboard, Wallet, Receipt, LogOut, ShieldCheck, Users, Eye } from 'lucide-react';
+import { LayoutDashboard, Wallet, Receipt, LogOut, ShieldCheck, Users, Eye, IndianRupee } from 'lucide-react';
 import { Logo } from '../logo';
 import { usePathname, useRouter } from 'next/navigation';
 
@@ -36,6 +36,12 @@ export function MainSidebar() {
       icon: Eye,
       label: 'Public View',
       roles: ['Public'],
+    },
+    {
+      href: '/dashboard/payments',
+      icon: IndianRupee,
+      label: 'Payments',
+      roles: ['Admin'],
     },
     {
       href: '/dashboard/budgets',
@@ -69,7 +75,7 @@ export function MainSidebar() {
               <SidebarMenuItem key={item.href + item.label}>
                 <SidebarMenuButton
                   asChild
-                  isActive={pathname === item.href}
+                  isActive={pathname.startsWith(item.href) && (item.href !== '/dashboard' || pathname === '/dashboard')}
                   onClick={() => router.push(item.href)}
                   tooltip={item.label}
                 >

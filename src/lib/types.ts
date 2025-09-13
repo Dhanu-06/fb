@@ -34,6 +34,18 @@ export interface Budget {
 
 export type PaymentMode = 'Cash' | 'UPI' | 'Bank Transfer' | 'Cheque' | 'Card' | 'In-Kind';
 
+export interface Payment {
+  id: string;
+  institutionId: string;
+  payerName: string;
+  studentId?: string;
+  amount: number;
+  paymentMode: PaymentMode;
+  transactionReference?: string;
+  receiptUrl?: string;
+  createdAt: string; // ISO string
+}
+
 export interface Expense {
   id: string;
   title: string;
@@ -74,4 +86,3 @@ export interface PublicStats {
 export const DEPARTMENTS = ["Library", "Sports", "Food", "Maintenance", "Lab", "Events", "Transport", "IT Services", "Student Welfare", "Administration", "Hostel", "Academics", "Research & Development"];
 export const EXPENSE_CATEGORIES = ["Supplies", "Services", "Equipment", "Travel", "Utilities", "Miscellaneous"];
 export const PAYMENT_MODES: PaymentMode[] = ['Cash', 'UPI', 'Bank Transfer', 'Cheque', 'Card', 'In-Kind'];
-

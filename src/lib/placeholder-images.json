@@ -11,6 +11,12 @@
       "description": "Banner image for the public transparency page",
       "imageUrl": "https://picsum.photos/seed/publicbanner/1600/400",
       "imageHint": "community meeting"
+    },
+    {
+      "id": "receipt-placeholder",
+      "description": "A generic placeholder for a receipt",
+      "imageUrl": "https://picsum.photos/seed/receipt/400/600",
+      "imageHint": "document receipt"
     }
   ]
 }

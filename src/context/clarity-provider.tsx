@@ -1,6 +1,6 @@
 'use client';
 
-import type { Budget, Expense, Role, User, PublicStats, SignupData, Institution, PaymentMode } from '@/lib/types';
+import type { Budget, Expense, Role, User, PublicStats, SignupData, Institution, PaymentMode, Payment } from '@/lib/types';
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { DEPARTMENTS, EXPENSE_CATEGORIES, PAYMENT_MODES } from '@/lib/types';
 
@@ -105,6 +105,8 @@ const initialExpenses: Expense[] = [
   },
 ];
 
+const initialPayments: Payment[] = [];
+
 // Context Type
 interface ClarityContextType {
   users: User[];
@@ -120,6 +122,8 @@ interface ClarityContextType {
   expenses: Expense[];
   addExpense: (expense: Omit<Expense, 'id' | 'submittedBy' | 'auditTrail' | 'status' | 'institutionId'>) => void;
   updateExpenseStatus: (expenseId: string, status: 'Approved' | 'Rejected', comments: string) => void;
+  payments: Payment[];
+  addPayment: (payment: Omit<Payment, 'id' | 'institutionId'>) => void;
   getExpensesForBudget: (budgetId: string) => Expense[];
   getBudgetById: (budgetId: string) => Budget | undefined;
   getExpenseById: (expenseId: string) => Expense | undefined;
@@ -140,6 +144,7 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
   const [institutions, setInstitutions] = useState<Institution[]>(initialInstitutions);
   const [budgets, setBudgets] = useState<Budget[]>(initialBudgets);
   const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
+  const [payments, setPayments] = useState<Payment[]>(initialPayments);
 
   useEffect(() => {
     try {
@@ -210,6 +215,16 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
       ],
     };
     setExpenses((prev) => [...prev, newExpense]);
+  };
+  
+  const addPayment = (paymentData: Omit<Payment, 'id' | 'institutionId'>) => {
+    if (!currentUser) throw new Error("No user logged in");
+    const newPayment: Payment = {
+        ...paymentData,
+        id: `pay-${Date.now()}`,
+        institutionId: currentUser.institutionId,
+    };
+    setPayments((prev) => [...prev, newPayment]);
   };
 
   const updateExpenseStatus = (expenseId: string, status: 'Approved' | 'Rejected', comments: string) => {
@@ -290,6 +305,8 @@ export const ClarityProvider = ({ children }: { children: ReactNode }) => {
     expenses: currentUser ? expenses.filter(e => e.institutionId === currentUser.institutionId) : [],
     addExpense,
     updateExpenseStatus,
+    payments: currentUser ? payments.filter(p => p.institutionId === currentUser.institutionId) : [],
+    addPayment,
     getExpensesForBudget,
     getBudgetById,
     getExpenseById,
