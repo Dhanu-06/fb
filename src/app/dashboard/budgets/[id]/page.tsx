@@ -9,9 +9,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
+import type { PageProps } from "@/lib/types";
 
-export default function BudgetDetailPage() {
-  const { id } = useParams();
+export default function BudgetDetailPage({ params }: PageProps<{ id: string }>) {
+  const { id } = params;
   const { getBudgetById, getExpensesForBudget } = useClarity();
   const router = useRouter();
 
