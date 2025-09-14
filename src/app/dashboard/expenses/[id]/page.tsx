@@ -3,11 +3,11 @@ import { useClarity } from "@/context/clarity-provider";
 import { ExpenseDetails } from "@/components/dashboard/expenses/expense-details";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import type { Expense } from "@/lib/types";
+import type { Expense, PageProps } from "@/lib/types";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function ExpenseDetailPage({ params }: { params: { id: string } }) {
+export default function ExpenseDetailPage({ params }: PageProps<{ id: string }>) {
   const { getExpenseById, expenses } = useClarity();
   const router = useRouter();
 

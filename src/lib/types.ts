@@ -98,6 +98,11 @@ export interface PublicStats {
     departmentData: PublicDepartmentStat[];
 }
 
+export type PageProps<T = {}> = {
+  params: T;
+  searchParams?: {[key: string]: string | string[] | undefined};
+};
+
 export const DEPARTMENTS = ["Library", "Sports", "Food", "Maintenance", "Lab", "Events", "Transport", "IT Services", "Student Welfare", "Administration", "Hostel", "Academics", "Research & Development", "Infrastructure & Construction"];
 export const EXPENSE_CATEGORIES = ["Supplies", "Services", "Equipment", "Travel", "Utilities", "Miscellaneous"];
 export const PAYMENT_MODES: PaymentMode[] = ['Cash', 'UPI', 'Bank Transfer', 'Cheque', 'Card', 'In-Kind'];
